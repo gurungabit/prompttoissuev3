@@ -29,6 +29,16 @@ export default function ChatPage() {
   const [optimisticUser, setOptimisticUser] = useState<ChatMessage | null>(null);
   const { show } = useToast();
 
+  // Smooth typewriter reveal state (decouples network chunking from UI updates)
+  const typewriterRef = useRef<{
+    buffer: string; // text waiting to be revealed
+    rendered: string; // text already revealed
+    raf: number; // active rAF id (0 if idle)
+    done: boolean; // network stream completed
+    lastTs: number; // last frame timestamp
+    final: string; // final full content when done
+  }>({ buffer: "", rendered: "", raf: 0, done: false, lastTs: 0, final: "" });
+
   // Set the selected thread ID when component mounts
   useEffect(() => {
     if (chatId) {
@@ -100,28 +110,98 @@ export default function ChatPage() {
     }
     const reader = res.body?.getReader();
     if (!reader) return;
-    let acc = "";
+
+    // Initialize pending assistant bubble and typewriter state
     setPending({
       id: "pending",
       role: "assistant",
       content: "",
       createdAt: new Date().toISOString(),
     });
+    // Cancel any prior animation if somehow still running
+    if (typewriterRef.current.raf) {
+      cancelAnimationFrame(typewriterRef.current.raf);
+    }
+    typewriterRef.current = {
+      buffer: "",
+      rendered: "",
+      raf: 0,
+      done: false,
+      lastTs: 0,
+      final: "",
+    };
+
+    const decoder = new TextDecoder();
+
+    const tick = (ts: number) => {
+      const tw = typewriterRef.current;
+      // Target characters per second; clamp reveals to reduce heavy re-parsing
+      const CPS = 48; // feel free to tune between 32–64 for taste
+      const dt = tw.lastTs ? ts - tw.lastTs : 16;
+      tw.lastTs = ts;
+
+      if (tw.buffer.length > 0) {
+        // Reveal at least 1 char per frame, but keep near CPS on average
+        const toReveal = Math.max(1, Math.floor((dt / 1000) * CPS));
+        const n = Math.min(tw.buffer.length, toReveal);
+        const chunk = tw.buffer.slice(0, n);
+        tw.buffer = tw.buffer.slice(n);
+        tw.rendered += chunk;
+        setPending({
+          id: "pending",
+          role: "assistant",
+          content: tw.rendered,
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      if (tw.buffer.length > 0 || !tw.done) {
+        tw.raf = requestAnimationFrame(tick);
+      } else {
+        // Finished draining and network is done: finalize
+        // Ensure pending content exactly matches the final full text before refresh
+        if (tw.rendered !== tw.final) {
+          tw.rendered = tw.final;
+          setPending({
+            id: "pending",
+            role: "assistant",
+            content: tw.rendered,
+            createdAt: new Date().toISOString(),
+          });
+        }
+        tw.raf = 0;
+        // Now revalidate to swap the pending bubble with the persisted one
+        refresh();
+        refreshThreads();
+      }
+    };
+
+    // Read network stream and feed the typewriter buffer
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
-      acc += new TextDecoder().decode(value);
-      setPending({
-        id: "pending",
-        role: "assistant",
-        content: acc,
-        createdAt: new Date().toISOString(),
-      });
+      if (done) {
+        const tw = typewriterRef.current;
+        tw.done = true;
+        break;
+      }
+      const delta = decoder.decode(value, { stream: true });
+      if (!delta) continue;
+      const tw = typewriterRef.current;
+      tw.buffer += delta;
+      tw.final += delta;
+      if (tw.raf === 0) {
+        tw.lastTs = 0;
+        tw.raf = requestAnimationFrame(tick);
+      }
     }
-    // Background revalidate messages and threads; keep UI stable until data lands
-    refresh();
-    refreshThreads();
   }, [chatId, threads, refresh, refreshThreads, show]);
+
+  // Cleanup on unmount: cancel any pending rAF to avoid leaks
+  useEffect(() => {
+    return () => {
+      if (typewriterRef.current.raf) cancelAnimationFrame(typewriterRef.current.raf);
+    };
+  }, []);
 
   // Handle initial message from URL params (when coming from home page)
   // Guard against double-invocation in React Strict Mode
