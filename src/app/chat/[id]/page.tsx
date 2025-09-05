@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef, startTransition } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Chat, type ChatMessage } from "../../../components/Chat";
 import { useMessages } from "../../../hooks/useMessages";
@@ -33,11 +33,10 @@ export default function ChatPage() {
   const typewriterRef = useRef<{
     buffer: string; // text waiting to be revealed
     rendered: string; // text already revealed
-    raf: number; // active rAF id (0 if idle)
+    timer: number; // active interval id (0 if idle)
     done: boolean; // network stream completed
-    lastTs: number; // last frame timestamp
     final: string; // final full content when done
-  }>({ buffer: "", rendered: "", raf: 0, done: false, lastTs: 0, final: "" });
+  }>({ buffer: "", rendered: "", timer: 0, done: false, final: "" });
 
   // Set the selected thread ID when component mounts
   useEffect(() => {
@@ -119,58 +118,61 @@ export default function ChatPage() {
       createdAt: new Date().toISOString(),
     });
     // Cancel any prior animation if somehow still running
-    if (typewriterRef.current.raf) {
-      cancelAnimationFrame(typewriterRef.current.raf);
+    if (typewriterRef.current.timer) {
+      window.clearInterval(typewriterRef.current.timer);
     }
     typewriterRef.current = {
       buffer: "",
       rendered: "",
-      raf: 0,
       done: false,
-      lastTs: 0,
       final: "",
+      timer: 0,
     };
 
     const decoder = new TextDecoder();
+    const TICK_MS = 33; // ~30fps
+    const CHARS_PER_TICK = 3; // reveal a few chars per tick
 
-    const tick = (ts: number) => {
+    const tick = () => {
       const tw = typewriterRef.current;
-      // Target characters per second; clamp reveals to reduce heavy re-parsing
-      const CPS = 48; // feel free to tune between 32–64 for taste
-      const dt = tw.lastTs ? ts - tw.lastTs : 16;
-      tw.lastTs = ts;
-
+      let changed = false;
       if (tw.buffer.length > 0) {
-        // Reveal at least 1 char per frame, but keep near CPS on average
-        const toReveal = Math.max(1, Math.floor((dt / 1000) * CPS));
-        const n = Math.min(tw.buffer.length, toReveal);
+        const n = Math.min(tw.buffer.length, CHARS_PER_TICK);
         const chunk = tw.buffer.slice(0, n);
         tw.buffer = tw.buffer.slice(n);
         tw.rendered += chunk;
-        setPending({
-          id: "pending",
-          role: "assistant",
-          content: tw.rendered,
-          createdAt: new Date().toISOString(),
-        });
+        changed = true;
       }
 
-      if (tw.buffer.length > 0 || !tw.done) {
-        tw.raf = requestAnimationFrame(tick);
-      } else {
-        // Finished draining and network is done: finalize
-        // Ensure pending content exactly matches the final full text before refresh
-        if (tw.rendered !== tw.final) {
-          tw.rendered = tw.final;
+      if (changed) {
+        // Mark this as a transition to keep typing smooth
+        startTransition(() => {
           setPending({
             id: "pending",
             role: "assistant",
             content: tw.rendered,
             createdAt: new Date().toISOString(),
           });
+        });
+      }
+
+      if (tw.buffer.length === 0 && tw.done) {
+        if (tw.rendered !== tw.final) {
+          const finalText = tw.final;
+          startTransition(() => {
+            setPending({
+              id: "pending",
+              role: "assistant",
+              content: finalText,
+              createdAt: new Date().toISOString(),
+            });
+          });
         }
-        tw.raf = 0;
-        // Now revalidate to swap the pending bubble with the persisted one
+        if (typewriterRef.current.timer) {
+          window.clearInterval(typewriterRef.current.timer);
+          typewriterRef.current.timer = 0;
+        }
+        // Revalidate after finishing to swap in persisted message
         refresh();
         refreshThreads();
       }
@@ -189,9 +191,8 @@ export default function ChatPage() {
       const tw = typewriterRef.current;
       tw.buffer += delta;
       tw.final += delta;
-      if (tw.raf === 0) {
-        tw.lastTs = 0;
-        tw.raf = requestAnimationFrame(tick);
+      if (tw.timer === 0) {
+        tw.timer = window.setInterval(tick, TICK_MS);
       }
     }
   }, [chatId, threads, refresh, refreshThreads, show]);
@@ -199,7 +200,7 @@ export default function ChatPage() {
   // Cleanup on unmount: cancel any pending rAF to avoid leaks
   useEffect(() => {
     return () => {
-      if (typewriterRef.current.raf) cancelAnimationFrame(typewriterRef.current.raf);
+      if (typewriterRef.current.timer) window.clearInterval(typewriterRef.current.timer);
     };
   }, []);
 

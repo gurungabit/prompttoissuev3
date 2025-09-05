@@ -11,6 +11,47 @@ import "../styles/markdown.css";
 
 // Singleton highlighter (bundled) for browser without async plugins in react-markdown
 let highlighterPromise: Promise<shiki.HighlighterGeneric<shiki.BundledLanguage, shiki.BundledTheme>> | null = null;
+const SUPPORTED_LANGS = new Set<string>(Object.keys(shiki.bundledLanguages).map((k) => k.toLowerCase()));
+const LANG_ALIASES: Record<string, string> = {
+  yml: "yaml",
+  shell: "bash",
+  sh: "bash",
+  md: "markdown",
+  plaintext: "plaintext",
+  plain: "plaintext",
+  text: "plaintext",
+  csharp: "csharp",
+  "c#": "csharp",
+  cpp: "cpp",
+  "c++": "cpp",
+};
+const LANGS_TO_LOAD = [
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "json",
+  "bash",
+  "shell",
+  "python",
+  "go",
+  "rust",
+  "md",
+  "yaml",
+  "toml",
+  "html",
+  "css",
+  "plaintext",
+] as const;
+const LOADED_LANGS = new Set<string>(LANGS_TO_LOAD);
+
+function resolveLang(input: string | undefined): { safe: shiki.BundledLanguage | "plaintext"; display: string; canon: string } {
+  const raw = (input ?? "").toLowerCase();
+  const canon = LANG_ALIASES[raw] ?? raw;
+  if (SUPPORTED_LANGS.has(canon)) return { safe: canon as shiki.BundledLanguage, display: canon, canon };
+  // Fallback for unknown/partial languages during streaming
+  return { safe: "plaintext", display: raw || "plaintext", canon };
+}
 function getHighlighter() {
   if (!highlighterPromise) {
     const createBundled = shiki.createdBundledHighlighter({
@@ -20,23 +61,7 @@ function getHighlighter() {
     });
     highlighterPromise = createBundled({
       themes: ["github-light-default", "github-dark-default"],
-      langs: [
-        "ts",
-        "tsx",
-        "js",
-        "jsx",
-        "json",
-        "bash",
-        "shell",
-        "python",
-        "go",
-        "rust",
-        "md",
-        "yaml",
-        "toml",
-        "html",
-        "css",
-      ],
+      langs: LANGS_TO_LOAD as unknown as any,
     });
   }
   return highlighterPromise;
@@ -56,7 +81,9 @@ function CodeBlockWrapper({ children }: { children: React.ReactNode }) {
       : "";
   const className = (child?.props?.className as string | undefined) ?? "";
   const match = className.match(/language-([\w-]+)/);
-  const lang = match?.[1] ?? "plaintext";
+  const rawLang = match?.[1] ?? "plaintext";
+  const { safe: safeLang, display: displayLang, canon } = resolveLang(rawLang);
+  const highlightable = LOADED_LANGS.has(canon);
 
   const [lineCount, setLineCount] = useState<number>(0);
   const [copied, setCopied] = useState(false);
@@ -67,22 +94,36 @@ function CodeBlockWrapper({ children }: { children: React.ReactNode }) {
     setLineCount(count);
   }, [raw]);
 
+  const timerRef = useRef<number | null>(null);
+
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      const highlighter = await getHighlighter();
-      const themeAttr = document.documentElement.getAttribute("data-theme");
-      const theme = themeAttr === "dark" ? "github-dark-default" : "github-light-default";
-      let html = highlighter.codeToHtml(raw, { lang, theme });
-      // Ensure long lines wrap gracefully instead of requiring horizontal scroll
-      html = html.replace(
-        "<code>",
-        '<code style="white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere;">',
-      );
-      if (mounted) setHtml(html);
-    })();
-    return () => { mounted = false; };
-  }, [raw, lang]);
+    if (!highlightable) {
+      // If not highlightable (unknown or partial), render plain <pre>
+      setHtml(null);
+      return () => { mounted = false; };
+    }
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(async () => {
+      try {
+        const highlighter = await getHighlighter();
+        const themeAttr = document.documentElement.getAttribute("data-theme");
+        const theme = themeAttr === "dark" ? "github-dark-default" : "github-light-default";
+        let htmlOut = highlighter.codeToHtml(raw, { lang: safeLang as shiki.BundledLanguage, theme });
+        htmlOut = htmlOut.replace(
+          "<code>",
+          '<code style="white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere;">',
+        );
+        if (mounted) setHtml(htmlOut);
+      } catch {
+        if (mounted) setHtml(null);
+      }
+    }, 80);
+    return () => {
+      mounted = false;
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, [raw, safeLang, highlightable]);
 
   const handleCopy = async () => {
     try {
@@ -97,7 +138,7 @@ function CodeBlockWrapper({ children }: { children: React.ReactNode }) {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-[color:var(--color-border)] text-[color:var(--color-muted)]">
         <div className="text-xs uppercase tracking-wider">
-          {lang}
+          {displayLang}
           {lineCount > 0 && <span className="ml-2 text-[color:var(--color-muted)]">{lineCount} lines</span>}
         </div>
         <div className="flex items-center gap-2">
