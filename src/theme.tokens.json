@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/tsconfig.json",
+  "colors": {
+    "bg": { "light": "#ffffff", "dark": "#0b0b0c" },
+    "surface": { "light": "#f7f7f8", "dark": "#141518" },
+    "card": { "light": "#ffffff", "dark": "#17181c" },
+    "text": { "light": "#111213", "dark": "#e7e9ea" },
+    "muted": { "light": "#6b7280", "dark": "#9aa0a6" },
+    "primary": { "light": "#1f6feb", "dark": "#4c8dff" },
+    "primary-contrast": { "light": "#ffffff", "dark": "#0b0b0c" },
+    "border": { "light": "#e5e7eb", "dark": "#2a2d34" },
+    "ring": { "light": "#1f6feb", "dark": "#4c8dff" },
+    "elev-1": { "light": "rgba(17, 17, 26, 0.05)", "dark": "rgba(0,0,0,0.35)" }
+  },
+  "radii": {
+    "sm": "6px",
+    "md": "10px",
+    "lg": "14px",
+    "xl": "20px"
+  },
+  "spacing": {
+    "xs": "0.375rem",
+    "sm": "0.5rem",
+    "md": "0.75rem",
+    "lg": "1rem",
+    "xl": "1.5rem",
+    "2xl": "2rem"
+  },
+  "elevation": {
+    "low": "0 1px 2px rgba(0,0,0,0.06)",
+    "mid": "0 2px 8px rgba(0,0,0,0.08)",
+    "high": "0 8px 24px rgba(0,0,0,0.18)"
+  }
+}
+

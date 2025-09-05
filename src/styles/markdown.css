@@ -1,0 +1,70 @@
+/* Minimal GitHub-like Markdown styles, themed via app CSS variables */
+.markdown-body {
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+.markdown-body > *:first-child { margin-top: 0; }
+.markdown-body > *:last-child { margin-bottom: 0; }
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  color: var(--color-text);
+  line-height: 1.25;
+  margin: 1.25em 0 0.6em;
+  font-weight: 600;
+}
+.markdown-body h1 { font-size: 1.6rem; }
+.markdown-body h2 { font-size: 1.35rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.2em; }
+.markdown-body h3 { font-size: 1.15rem; }
+.markdown-body h4 { font-size: 1.05rem; }
+
+.markdown-body p { margin: 0.7em 0; }
+.markdown-body strong { font-weight: 600; }
+.markdown-body em { font-style: italic; }
+.markdown-body hr { border: 0; border-top: 1px solid var(--color-border); margin: 1.25em 0; }
+
+.markdown-body ul,
+.markdown-body ol { margin: 0.6em 0 0.8em 1.25em; }
+.markdown-body li + li { margin-top: 0.25em; }
+.markdown-body blockquote {
+  margin: 0.8em 0;
+  padding: 0.6em 0.9em;
+  border-left: 3px solid var(--color-border);
+  color: var(--color-muted);
+  background: var(--color-card);
+  border-radius: 6px;
+}
+
+.markdown-body a { color: var(--color-primary); text-decoration: underline; }
+.markdown-body a:hover { opacity: 0.9; }
+
+.markdown-body code:not(pre code) {
+  background: var(--color-card);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.15em 0.35em;
+}
+
+.markdown-body pre {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  overflow: visible;
+}
+.markdown-body pre code {
+  background: transparent !important;
+}
+
+.markdown-body table { border-collapse: collapse; width: 100%; }
+.markdown-body th, .markdown-body td {
+  border: 1px solid var(--color-border);
+  padding: 0.45rem 0.6rem;
+}
+.markdown-body th { background: var(--color-card); text-align: left; }
+
+.markdown-body img { max-width: 100%; height: auto; border: 1px solid var(--color-border); border-radius: 8px; }
+
