@@ -43,6 +43,27 @@ export function Chat({
     el.scrollTop = el.scrollHeight;
   };
 
+  const scrollToBottomSmooth = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    try {
+      (el as any).scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    } catch {
+      const start = el.scrollTop;
+      const target = el.scrollHeight;
+      const duration = 350;
+      let startTime: number | null = null;
+      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+      const step = (ts: number) => {
+        if (startTime === null) startTime = ts;
+        const t = Math.min(1, (ts - startTime) / duration);
+        el.scrollTop = start + (target - start) * easeOutCubic(t);
+        if (t < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+  };
+
   const sendAndScroll = (text: string) => {
     onSend(text);
     // Nudge scroll after layout with rAF to ensure we're at bottom
@@ -276,11 +297,7 @@ export function Chat({
         <div className="mb-2 flex items-center">
           <ModelPicker />
           <button
-            onClick={() => {
-              const el = scrollRef.current;
-              if (!el) return;
-              el.scrollTop = el.scrollHeight;
-            }}
+            onClick={scrollToBottomSmooth}
             className={`mx-auto p-2 ml-50 rounded-full bg-[color:var(--color-surface)] border border-[color:var(--color-border)] shadow hover:bg-[color:var(--color-card)] text-[color:var(--color-text)] cursor-pointer transition-opacity ${
               hasBelow ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
