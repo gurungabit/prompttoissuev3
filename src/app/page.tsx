@@ -14,6 +14,16 @@ export default function Home() {
   const { show } = useToast();
   const [mode, setMode] = useState<Mode>("assistant");
 
+  // Load saved mode after hydration so New Chat reflects user preference
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("chat-mode");
+      if (saved === "assistant" || saved === "ticket") {
+        setMode(saved as Mode);
+      }
+    }
+  }, []);
+
   // Redirect to existing thread if one is selected and exists
   useEffect(() => {
     if (selectedId && threads.some((t) => t.id === selectedId)) {

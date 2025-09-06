@@ -1,6 +1,6 @@
 "use client";
 import { ChevronsDown, Copy, RotateCcw, Send, Ticket } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MarkdownMessage from "./MarkdownMessage";
 import ModelPicker from "./ModelPicker";
 import ModeToggle, { type Mode } from "./ModeToggle";
@@ -27,6 +27,10 @@ export type ChatProps = {
   onTogglePin?: (id: string, nextPinned: boolean) => void | Promise<unknown>;
   mode?: Mode;
   onChangeMode?: (m: Mode) => void;
+  onUpdateTickets?: (
+    id: string,
+    tickets: TicketsPayload,
+  ) => void | Promise<void>;
 };
 
 export function Chat({
@@ -36,6 +40,7 @@ export function Chat({
   isStreaming,
   mode = "assistant",
   onChangeMode,
+  onUpdateTickets,
 }: ChatProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -181,6 +186,10 @@ export function Chat({
   }, []);
 
   const [ticketOpenFor, setTicketOpenFor] = useState<string | null>(null);
+  const messageForDrawer = useMemo(
+    () => messages.find((m) => m.id === ticketOpenFor) ?? null,
+    [messages, ticketOpenFor],
+  );
 
   return (
     <div className="flex flex-col h-full bg-[color:var(--color-bg)]">
@@ -211,16 +220,16 @@ export function Chat({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
               {(mode === "assistant"
                 ? [
-                    "Explain this error log",
-                    "Review this pull request",
-                    "Convert this code to TypeScript",
-                    "Summarize these requirements",
+                    "Draft PR description for ModeToggle",
+                    "Test plan for Chat and API routes",
+                    "Explain 500s from /api/chat and fixes",
+                    "Refactor ideas for Chat.tsx performance",
                   ]
                 : [
-                    "Create tickets for onboarding flow",
-                    "Break down feature: file uploads",
-                    "Bugfix tickets for payment retries",
-                    "Documentation tasks for API v2",
+                    "Feature: export tickets to GitLab",
+                    "Add Vitest + RTL with sample tests",
+                    "Bugfix: improve stream retry + errors",
+                    "Docs: setup (env, Docker, Drizzle)",
                   ]
               ).map((example, i) => (
                 <button
@@ -261,7 +270,7 @@ export function Chat({
                     message.role === "user"
                       ? "justify-end pr-4"
                       : "justify-start"
-                  } opacity-0 group-hover:opacity-100 transition-opacity`}
+                  } opacity-100`}
                 >
                   <div className="flex items-center gap-1">
                     <span className="relative inline-block">
@@ -297,7 +306,10 @@ export function Chat({
                               className="peer p-1 rounded hover:bg-[color:var(--color-card)] text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] cursor-pointer"
                               aria-label="Show tickets"
                             >
-                              <Ticket size={16} />
+                              <div className="flex items-center gap-1">
+                                <Ticket size={16} />
+                                Show Tickets
+                              </div>
                             </button>
                             <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-xs rounded bg-[color:var(--color-surface)] text-[color:var(--color-text)] border border-[color:var(--color-border)] shadow opacity-0 peer-hover:opacity-100">
                               Show tickets
@@ -350,7 +362,13 @@ export function Chat({
           <div className="ml-auto">
             <ModeToggle
               value={mode ?? "assistant"}
-              onChange={(m) => onChangeMode?.(m)}
+              onChange={(m) => {
+                // Save to localStorage immediately to ensure persistence
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("chat-mode", m);
+                }
+                onChangeMode?.(m);
+              }}
             />
           </div>
         </div>
@@ -376,9 +394,10 @@ export function Chat({
         </form>
       </div>
       {/* Tickets Drawer */}
-      {ticketOpenFor && (
+      {ticketOpenFor && messageForDrawer && (
         <TicketsDrawer
-          messageId={ticketOpenFor}
+          initialTickets={messageForDrawer.ticketsJson ?? null}
+          onSave={(t) => onUpdateTickets?.(messageForDrawer.id, t)}
           onClose={() => setTicketOpenFor(null)}
         />
       )}

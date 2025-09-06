@@ -1,6 +1,7 @@
 "use client";
 import useSWRInfinite from "swr/infinite";
 import { PaginatedMessages } from "../lib/schemas";
+import type { TicketsPayload } from "../lib/tickets";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -65,6 +66,20 @@ export function useMessages(
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ pinned }),
+      });
+      await mutate();
+    },
+    updateTickets: async (messageId: string, tickets: TicketsPayload) => {
+      await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ticketsJson: tickets }),
+      });
+      await mutate();
+    },
+    deleteMessage: async (messageId: string) => {
+      await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, {
+        method: "DELETE",
       });
       await mutate();
     },

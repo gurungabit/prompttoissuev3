@@ -14,6 +14,7 @@ import { useToast } from "../../../components/Toast";
 import { useSettings } from "../../../context/Settings";
 import { useThreadSelection } from "../../../context/ThreadSelection";
 import { useMessages } from "../../../hooks/useMessages";
+import { useChatStream } from "../../../hooks/useChatStream";
 import { useThreads } from "../../../hooks/useThreads";
 import { DEFAULT_SPEC } from "../../../lib/llm-config";
 
@@ -25,15 +26,50 @@ export default function ChatPage() {
   const initialMessage = searchParams.get("message");
   const { threads, refresh: refreshThreads } = useThreads();
   const { setSelectedId } = useThreadSelection();
-  const { messages, refresh, loadMore, hasMore, isLoadingMore, togglePin } =
-    useMessages(chatId);
+  const {
+    messages,
+    refresh,
+    loadMore,
+    hasMore,
+    isLoadingMore,
+    togglePin,
+    updateTickets,
+    sendUserMessage,
+    deleteMessage,
+  } = useMessages(chatId);
+  const { streamChat } = useChatStream();
   const [pending, setPending] = useState<ChatMessage | null>(null);
   // Optimistic user bubble while POST in-flight
   const [optimisticUser, setOptimisticUser] = useState<ChatMessage | null>(
-    null,
+    null
   );
   const { show } = useToast();
+  // Use a ref to track the actual current mode (survives hot reloads)
+  const currentModeRef = useRef<Mode>("assistant");
+  
+  // Persist mode selection in localStorage (hydration-safe)
   const [mode, setMode] = useState<Mode>("assistant");
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Load saved mode after hydration to avoid SSR mismatch
+  useEffect(() => {
+    setIsHydrated(true);
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("chat-mode");
+      if (saved && (saved === "assistant" || saved === "ticket")) {
+        const savedMode = saved as Mode;
+        setMode(savedMode);
+        currentModeRef.current = savedMode;
+      }
+    }
+  }, []);
+
+  // Persist mode to localStorage whenever it changes (only after hydration)
+  useEffect(() => {
+    if (isHydrated && typeof window !== "undefined") {
+      localStorage.setItem("chat-mode", mode);
+    }
+  }, [mode, isHydrated]);
   const { spec: globalSpec } = useSettings();
 
   // Smooth typewriter reveal state (decouples network chunking from UI updates)
@@ -59,6 +95,7 @@ export default function ChatPage() {
     async (text: string) => {
       const useThreadId = chatId;
       if (!useThreadId) return;
+      
 
       // Optimistically show the user's message immediately
       setOptimisticUser({
@@ -68,58 +105,18 @@ export default function ChatPage() {
         createdAt: new Date().toISOString(),
       });
 
-      // Persist user message
-      const post = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          threadId: useThreadId,
-          role: "user",
-          content: text,
-        }),
-      });
-      if (!post.ok) {
-        try {
-          const err = await post.json();
-          show(err.error ?? "Failed to send message", "error");
-        } catch {
-          show("Failed to send message", "error");
-        }
-        // Rollback optimistic user message on failure
+      // Persist user message via hook
+      try {
+        await sendUserMessage(text);
+      } catch {
+        show("Failed to send message", "error");
         setOptimisticUser(null);
         return;
       }
 
       // Do not refresh yet to avoid showing both optimistic and persisted duplicates
 
-      // Stream assistant echo from /api/chat
-      const t = threads.find((x) => x.id === useThreadId);
-      const selectedModel = globalSpec || t?.defaultModel || DEFAULT_SPEC;
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          threadId: useThreadId,
-          messages: [{ role: "user", content: text }],
-          model: selectedModel,
-          mode,
-        }),
-      });
-      if (!res.ok) {
-        try {
-          const err = await res.json();
-          show(err.error ?? "Chat request failed", "error");
-        } catch {
-          show("Chat request failed", "error");
-        }
-        // Clear optimistic user if streaming fails; persisted message is already saved
-        setOptimisticUser(null);
-        return;
-      }
-      const reader = res.body?.getReader();
-      if (!reader) return;
-
-      // Initialize pending assistant bubble and typewriter state
+      // Initialize pending assistant bubble immediately to show loading
       setPending({
         id: "pending",
         role: "assistant",
@@ -138,7 +135,9 @@ export default function ChatPage() {
         timer: 0,
       };
 
-      const decoder = new TextDecoder();
+      // Stream assistant echo from /api/chat
+      const t = threads.find((x) => x.id === useThreadId);
+      const selectedModel = globalSpec || t?.defaultModel || DEFAULT_SPEC;
       const TICK_MS = 33; // ~30fps
       const CHARS_PER_TICK = 3; // reveal a few chars per tick
 
@@ -187,25 +186,32 @@ export default function ChatPage() {
         }
       };
 
-      // Read network stream and feed the typewriter buffer
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
+      // Stream via hook and feed the typewriter buffer
+      await streamChat({
+        threadId: useThreadId,
+        messages: [{ role: "user", content: text }],
+        model: selectedModel,
+        mode: currentModeRef.current,
+        onDelta: (delta) => {
+          if (!delta) return;
+          const tw = typewriterRef.current;
+          tw.buffer += delta;
+          tw.final += delta;
+          if (tw.timer === 0) {
+            tw.timer = window.setInterval(tick, TICK_MS);
+          }
+        },
+        onDone: () => {
           const tw = typewriterRef.current;
           tw.done = true;
-          break;
-        }
-        const delta = decoder.decode(value, { stream: true });
-        if (!delta) continue;
-        const tw = typewriterRef.current;
-        tw.buffer += delta;
-        tw.final += delta;
-        if (tw.timer === 0) {
-          tw.timer = window.setInterval(tick, TICK_MS);
-        }
-      }
+        },
+        onError: () => {
+          show("Chat request failed", "error");
+          setOptimisticUser(null);
+        },
+      });
     },
-    [chatId, threads, refresh, refreshThreads, show, globalSpec, mode],
+    [chatId, threads, refresh, refreshThreads, show, globalSpec]
   );
 
   // Cleanup on unmount: cancel any pending rAF to avoid leaks
@@ -243,7 +249,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!optimisticUser) return;
     const found = messages.some(
-      (m) => m.role === "user" && m.content === optimisticUser.content,
+      (m) => m.role === "user" && m.content === optimisticUser.content
     );
     if (found) setOptimisticUser(null);
   }, [messages, optimisticUser]);
@@ -252,7 +258,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!pending) return;
     const found = messages.some(
-      (m) => m.role === "assistant" && m.content === pending.content,
+      (m) => m.role === "assistant" && m.content === pending.content
     );
     if (found) setPending(null);
   }, [messages, pending]);
@@ -269,17 +275,7 @@ export default function ChatPage() {
     // Delete the last assistant message if it exists
     if (lastAssistantMessage) {
       try {
-        const deleteRes = await fetch(
-          `/api/messages?id=${lastAssistantMessage.id}`,
-          {
-            method: "DELETE",
-          },
-        );
-        if (!deleteRes.ok) {
-          show("Failed to delete previous response", "error");
-          return;
-        }
-        // Refresh messages to reflect the deletion
+        await deleteMessage(lastAssistantMessage.id);
         await refresh();
       } catch {
         show("Failed to delete previous response", "error");
@@ -293,6 +289,7 @@ export default function ChatPage() {
 
   const handleModeChange = (newMode: Mode) => {
     setMode(newMode);
+    currentModeRef.current = newMode;
   };
 
   return (
@@ -303,11 +300,12 @@ export default function ChatPage() {
         onRegenerate={handleRegenerate}
         isStreaming={!!pending}
         mode={mode}
-        onChangeMode={setMode}
+        onChangeMode={handleModeChange}
         onLoadMoreTop={loadMore}
         hasMore={hasMore}
         isLoadingMore={isLoadingMore}
         onTogglePin={(id, next) => togglePin(id, next)}
+        onUpdateTickets={(id, tickets) => updateTickets(id, tickets)}
       />
     </div>
   );

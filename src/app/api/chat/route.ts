@@ -114,18 +114,43 @@ export async function POST(req: NextRequest) {
       acc += value;
     }
     // Try to parse JSON
-    let summaryText = acc;
+    let summaryText = "Created tickets based on your requirements.";
     let ticketsJson: TicketsPayload | null = null;
+    
+    // Try to extract JSON from the response (may have extra text)
     try {
-      const objUnknown = JSON.parse(acc) as unknown;
+      // Look for JSON block in the response
+      let jsonStr = acc.trim();
+      
+      // Try to extract JSON if it's wrapped in markdown code blocks
+      const jsonMatch = jsonStr.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1];
+      } else if (jsonStr.startsWith('{') && jsonStr.endsWith('}')) {
+        // Already clean JSON
+      } else {
+        // Try to find JSON block in the text
+        const startIndex = jsonStr.indexOf('{');
+        const lastIndex = jsonStr.lastIndexOf('}');
+        if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
+          jsonStr = jsonStr.substring(startIndex, lastIndex + 1);
+        }
+      }
+      
+      const objUnknown = JSON.parse(jsonStr) as unknown;
       const parsed = TicketsPayloadSchema.safeParse(objUnknown);
+      
       if (parsed.success) {
         ticketsJson = parsed.data;
         const count = parsed.data.tickets.length;
-        const reasoning = parsed.data.reasoning;
+        const reasoning = parsed.data.reasoning || "Breaking down requirements into actionable tickets";
         summaryText = `Created ${count} ticket${count === 1 ? "" : "s"}.\n\nReasoning: ${reasoning}`;
+      } else {
+        summaryText = "Created tickets, but there was an issue parsing the details. Please check the ticket modal.";
       }
-    } catch {}
+    } catch (error) {
+      summaryText = "Created tickets based on your requirements, but couldn't parse the JSON format. Please try again.";
+    }
     // Persist message with optional ticketsJson
     try {
       await createMessage({
@@ -143,6 +168,7 @@ export async function POST(req: NextRequest) {
         tokenEstimate: estimate,
       });
     } catch {}
+    // Return the summary immediately (no streaming in ticket mode)
     return new Response(summaryText, {
       headers: {
         "content-type": "text/plain; charset=utf-8",

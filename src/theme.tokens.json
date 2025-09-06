@@ -8,6 +8,7 @@
     "muted": { "light": "#6b7280", "dark": "#9aa0a6" },
     "primary": { "light": "#1f6feb", "dark": "#4c8dff" },
     "primary-contrast": { "light": "#ffffff", "dark": "#0b0b0c" },
+    "success": { "light": "#10b981", "dark": "#34d399" },
     "border": { "light": "#e5e7eb", "dark": "#2a2d34" },
     "ring": { "light": "#1f6feb", "dark": "#4c8dff" },
     "elev-1": { "light": "rgba(17, 17, 26, 0.05)", "dark": "rgba(0,0,0,0.35)" }
