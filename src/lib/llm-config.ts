@@ -3,7 +3,7 @@ import { z } from "zod";
 export const PROVIDERS = {
   google: {
     label: "Google",
-    models: ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"],
+    models: ["gemini-2.0-flash"],
   },
   openai: {
     label: "OpenAI",
@@ -17,7 +17,10 @@ export function toSpecifier(provider: ProviderId, model: string) {
   return `${provider}:${model}`;
 }
 
-export function parseSpecifier(spec: string | null | undefined): { provider: ProviderId; model: string } {
+export function parseSpecifier(spec: string | null | undefined): {
+  provider: ProviderId;
+  model: string;
+} {
   if (!spec) return { provider: "google", model: "gemini-2.0-flash" };
   const i = spec.indexOf(":");
   if (i === -1) return { provider: "google", model: spec }; // backwards compat

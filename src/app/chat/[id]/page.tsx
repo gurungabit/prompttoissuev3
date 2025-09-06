@@ -5,6 +5,8 @@ import { Chat, type ChatMessage } from "../../../components/Chat";
 import { useMessages } from "../../../hooks/useMessages";
 import { useThreads } from "../../../hooks/useThreads";
 import { useToast } from "../../../components/Toast";
+import { useSettings } from "../../../context/Settings";
+import { DEFAULT_SPEC } from "../../../lib/llm-config";
 import { useThreadSelection } from "../../../context/ThreadSelection";
 
 export default function ChatPage() {
@@ -28,6 +30,7 @@ export default function ChatPage() {
   // Optimistic user bubble while POST in-flight
   const [optimisticUser, setOptimisticUser] = useState<ChatMessage | null>(null);
   const { show } = useToast();
+  const { spec: globalSpec } = useSettings();
 
   // Smooth typewriter reveal state (decouples network chunking from UI updates)
   const typewriterRef = useRef<{
@@ -86,7 +89,7 @@ export default function ChatPage() {
 
     // Stream assistant echo from /api/chat
     const t = threads.find((x) => x.id === useThreadId);
-    const selectedModel = t?.defaultModel ?? "gemini-2.0-flash";
+    const selectedModel = globalSpec || t?.defaultModel || DEFAULT_SPEC;
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -195,7 +198,7 @@ export default function ChatPage() {
         tw.timer = window.setInterval(tick, TICK_MS);
       }
     }
-  }, [chatId, threads, refresh, refreshThreads, show]);
+  }, [chatId, threads, refresh, refreshThreads, show, globalSpec]);
 
   // Cleanup on unmount: cancel any pending rAF to avoid leaks
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "../ThemeProvider";
+import { SettingsProvider } from "../context/Settings";
 import { ThreadSelectionProvider } from "../context/ThreadSelection";
 import { AppFrame } from "../components/AppFrame";
 import { ToastProvider } from "../components/Toast";
@@ -22,11 +23,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
-          <ToastProvider>
-            <ThreadSelectionProvider>
-              <AppFrame>{children}</AppFrame>
-            </ThreadSelectionProvider>
-          </ToastProvider>
+          <SettingsProvider>
+            <ToastProvider>
+              <ThreadSelectionProvider>
+                <AppFrame>{children}</AppFrame>
+              </ThreadSelectionProvider>
+            </ToastProvider>
+          </SettingsProvider>
         </ThemeProvider>
       </body>
     </html>

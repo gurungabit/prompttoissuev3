@@ -77,7 +77,7 @@ export function ThemeToggleButton() {
     <button
       aria-label="Toggle theme"
       onClick={toggle}
-      className="p-2 rounded-lg hover:bg-[color:var(--color-card)] transition-colors text-[color:var(--color-text)] cursor-pointer"
+      className="p-2 rounded-lg hover:bg-[color:var(--color-card)] hover:opacity-90 transition-colors text-[color:var(--color-text)] cursor-pointer focus:outline-none focus:ring-0"
       title={title}
       type="button"
     >

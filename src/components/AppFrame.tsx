@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ThemeToggleButton } from "../ThemeProvider";
+import { SettingsButton } from "./SettingsModal";
 import { Sidebar } from "./Sidebar";
 import { useThreads } from "../hooks/useThreads";
 import { useThreadSelection } from "../context/ThreadSelection";
@@ -79,7 +80,10 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           <h1 className="text-lg font-semibold text-[color:var(--color-text)]">
             {currentThread?.title || "Prompt To Issue"}
           </h1>
-          <ThemeToggleButton />
+          <div className="flex items-center gap-2">
+            <SettingsButton />
+            <ThemeToggleButton />
+          </div>
         </header>
 
         {/* Main Content */}

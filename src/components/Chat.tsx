@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Copy, RotateCcw, Send, ChevronsDown } from "lucide-react";
 import MarkdownMessage from "./MarkdownMessage";
+import ModelPicker from "./ModelPicker";
 
 export type ChatMessage = {
   id: string;
@@ -269,26 +270,26 @@ export function Chat({
         <div ref={bottomRef} style={{ height: 1 }} aria-hidden />
       </div>
 
-      {/* Jump to latest button centered above the input */}
-      <div className="px-6 -mt-2 mb-2 flex justify-center">
-        <button
-          onClick={() => {
-            const el = scrollRef.current;
-            if (!el) return;
-            el.scrollTop = el.scrollHeight;
-          }}
-          className={`p-2 rounded-full bg-[color:var(--color-surface)] border border-[color:var(--color-border)] shadow hover:bg-[color:var(--color-card)] text-[color:var(--color-text)] cursor-pointer transition-opacity ${
-            hasBelow ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-          aria-label="Jump to latest"
-          aria-hidden={!hasBelow}
-        >
-          <ChevronsDown size={18} />
-        </button>
-      </div>
-
       {/* Input Area */}
       <div className="px-6 py-4 max-w-4xl mx-auto w-full">
+        {/* Model picker and Jump-to-latest on the same row */}
+        <div className="mb-2 flex items-center">
+          <ModelPicker />
+          <button
+            onClick={() => {
+              const el = scrollRef.current;
+              if (!el) return;
+              el.scrollTop = el.scrollHeight;
+            }}
+            className={`mx-auto p-2 ml-50 rounded-full bg-[color:var(--color-surface)] border border-[color:var(--color-border)] shadow hover:bg-[color:var(--color-card)] text-[color:var(--color-text)] cursor-pointer transition-opacity ${
+              hasBelow ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+            aria-label="Jump to latest"
+            aria-hidden={!hasBelow}
+          >
+            <ChevronsDown size={18} />
+          </button>
+        </div>
         <form onSubmit={handleSubmit} className="relative">
           <textarea
             ref={inputRef}
