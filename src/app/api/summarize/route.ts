@@ -25,19 +25,19 @@ export async function POST(req: NextRequest) {
   if (!provCfg || !(provCfg.models as readonly string[]).includes(model)) {
     return Response.json(
       { error: `Unsupported model '${modelUsed}'.` },
-      { status: 400 },
+      { status: 400 }
     );
   }
   if (provider === "google" && !env.GOOGLE_API_KEY) {
     return Response.json(
       { error: "Missing GOOGLE_API_KEY for Google provider." },
-      { status: 400 },
+      { status: 400 }
     );
   }
   if (provider === "openai" && !env.OPENAI_API_KEY) {
     return Response.json(
       { error: "Missing OPENAI_API_KEY for OpenAI provider." },
-      { status: 400 },
+      { status: 400 }
     );
   }
   const summary = await summarizeThread({

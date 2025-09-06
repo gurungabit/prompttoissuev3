@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
   const limitParam = Number(searchParams.get("limit") ?? "30");
   const limit = Math.max(
     1,
-    Math.min(100, Number.isNaN(limitParam) ? 30 : limitParam),
+    Math.min(100, Number.isNaN(limitParam) ? 30 : limitParam)
   );
   const cursorParam = searchParams.get("cursor");
   const cursor = parseCursor(cursorParam);
@@ -72,8 +72,8 @@ export async function GET(req: NextRequest) {
       eq(messages.threadId, threadId),
       or(
         lt(messages.createdAt, createdAt),
-        and(eq(messages.createdAt, createdAt), lt(messages.id, cursor.id)),
-      ),
+        and(eq(messages.createdAt, createdAt), lt(messages.id, cursor.id))
+      )
     );
   })();
   const rowsDesc = await db
@@ -122,7 +122,7 @@ export async function DELETE(req: NextRequest) {
 
 function makeCursor(row: { id: string; createdAt: Date | string }) {
   return Buffer.from(
-    JSON.stringify({ id: row.id, createdAt: row.createdAt }),
+    JSON.stringify({ id: row.id, createdAt: row.createdAt })
   ).toString("base64");
 }
 

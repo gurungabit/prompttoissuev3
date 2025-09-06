@@ -55,7 +55,7 @@ export function useThreads(opts: UseThreadsOptions = {}) {
       archived: boolean;
       pinned: boolean;
       defaultModel: string;
-    }>,
+    }>
   ) {
     const res = await fetch(`/api/threads?id=${encodeURIComponent(id)}`, {
       method: "PATCH",

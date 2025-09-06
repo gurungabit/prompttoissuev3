@@ -17,7 +17,7 @@ const factories = {
 
 export async function streamAssistant(
   messages: ModelMessage[],
-  modelSpec: string = DEFAULT_SPEC,
+  modelSpec: string = DEFAULT_SPEC
 ) {
   const { provider: provName, model } = parseSpecifier(modelSpec);
   const prov = factories[provName]();

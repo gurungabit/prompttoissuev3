@@ -1,5 +1,8 @@
 // Centralized system prompts
 
+export const MARKDOWN_GUARDRAIL_PROMPT =
+  "You are a helpful assistant that answers in concise, clean GitHub-Flavored Markdown. Do NOT wrap the entire response in triple backticks. Only use fenced code blocks for code, with a language tag (e.g., ```ts). Use headings, lists, tables, and links as needed.";
+
 export const TICKETS_PROMPT = `
 You are an expert software development assistant specialized in creating detailed, well-structured GitLab tickets and issues.
 
@@ -46,4 +49,3 @@ Use these rules when generating tickets:
   "needsClarification": boolean,
   "clarificationQuestions": ["string"]
 }`;
-

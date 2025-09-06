@@ -21,7 +21,7 @@ function serializeThread(row: any) {
     summaryUpdatedAt:
       row.summaryUpdatedAt instanceof Date
         ? row.summaryUpdatedAt.toISOString()
-        : (row.summaryUpdatedAt ?? null),
+        : row.summaryUpdatedAt ?? null,
   };
 }
 
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
   if (q && q.trim()) {
     const needle = `%${q.trim()}%`;
     where.push(
-      or(ilike(threads.title, needle), ilike(threads.summaryText, needle)),
+      or(ilike(threads.title, needle), ilike(threads.summaryText, needle))
     );
   }
   if (cursor) {
@@ -87,8 +87,8 @@ export async function GET(req: NextRequest) {
     where.push(
       or(
         lt(threads.createdAt, createdAt),
-        and(eq(threads.createdAt, createdAt), lt(threads.id, cursor.id)),
-      ),
+        and(eq(threads.createdAt, createdAt), lt(threads.id, cursor.id))
+      )
     );
   }
   const rows = await db
@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
     .from(threadReads)
     .where(inArray(threadReads.threadId, ids));
   const readMap = new Map<string, Date>(
-    reads.map((r) => [r.threadId, r.lastReadAt as Date]),
+    reads.map((r) => [r.threadId, r.lastReadAt as Date])
   );
 
   // Determine unread: latest message newer than lastReadAt
@@ -177,15 +177,15 @@ export async function POST(req: NextRequest) {
         summaryText: t.summaryText ?? null,
         summaryModel: t.summaryModel ?? null,
         summaryUpdatedAt: t.summaryUpdatedAt ?? null,
-      }),
+      })
     ),
-    { status: 201 },
+    { status: 201 }
   );
 }
 
 function makeCursor(row: any) {
   return Buffer.from(
-    JSON.stringify({ id: row.id, createdAt: row.createdAt }),
+    JSON.stringify({ id: row.id, createdAt: row.createdAt })
   ).toString("base64");
 }
 

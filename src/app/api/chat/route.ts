@@ -10,12 +10,15 @@ import {
   buildContextMessages,
   estimateTokensForText,
 } from "../../../lib/chat-context";
-import { env } from "../../../lib/env";
 import { streamAssistant } from "../../../lib/llm";
-import { DEFAULT_SPEC, PROVIDERS, parseSpecifier } from "../../../lib/llm-config";
-import { TICKETS_PROMPT } from "../../../lib/prompts";
+import { DEFAULT_SPEC } from "../../../lib/llm-config";
+import { validateSpec } from "../../../lib/llm-validate";
+import {
+  MARKDOWN_GUARDRAIL_PROMPT,
+  TICKETS_PROMPT,
+} from "../../../lib/prompts";
 import { summarizeThread } from "../../../lib/summarize";
-import { TicketsPayloadSchema, type TicketsPayload } from "../../../lib/tickets";
+import { parseTicketsFromText } from "../../../lib/tickets";
 
 const SUMMARIZE_TOKEN_THRESHOLD = 3000;
 const SUMMARIZE_MESSAGE_THRESHOLD = 60;
@@ -27,7 +30,7 @@ const Body = z.object({
       z.object({
         role: z.enum(["user", "assistant", "system"]),
         content: z.string(),
-      }),
+      })
     )
     .nonempty(),
   model: z.string().optional().default("gemini-2.0-flash"),
@@ -60,35 +63,19 @@ export async function POST(req: NextRequest) {
       createdAt: m.createdAt,
     })),
   });
-  // Formatting guardrail: ask the model to return pure Markdown prose, not wrapped in
-  // ```markdown blocks; only use fences for actual code. Keep links, tables, lists.
-  const guardrail = {
-    role: "system" as const,
-    content:
-      "You are a helpful assistant that answers in concise, clean GitHub-Flavored Markdown. Do NOT wrap the entire response in triple backticks. Only use fenced code blocks for code, with a language tag (e.g., ```ts). Use headings, lists, tables, and links as needed.",
-  };
-  const finalPrompt = [guardrail, ...prompt];
+  // Centralized system prompts
+  const finalPrompt = [
+    { role: "system" as const, content: MARKDOWN_GUARDRAIL_PROMPT },
+    ...prompt,
+  ];
 
   // Validate provider + model and API keys
   const spec = parsed.data.model ?? DEFAULT_SPEC;
-  const { provider, model } = parseSpecifier(spec);
-  const provCfg = PROVIDERS[provider];
-  if (!provCfg || !(provCfg.models as readonly string[]).includes(model)) {
+  const validation = validateSpec(spec);
+  if (!validation.ok) {
     return Response.json(
-      { error: `Unsupported model '${spec}'.` },
-      { status: 400 },
-    );
-  }
-  if (provider === "google" && !env.GOOGLE_API_KEY) {
-    return Response.json(
-      { error: "Missing GOOGLE_API_KEY for Google provider." },
-      { status: 400 },
-    );
-  }
-  if (provider === "openai" && !env.OPENAI_API_KEY) {
-    return Response.json(
-      { error: "Missing OPENAI_API_KEY for OpenAI provider." },
-      { status: 400 },
+      { error: validation.error },
+      { status: validation.status }
     );
   }
 
@@ -103,7 +90,7 @@ export async function POST(req: NextRequest) {
         },
         ...finalPrompt,
       ],
-      spec,
+      spec
     );
     const reader = result.textStream.getReader();
     let acc = "";
@@ -113,44 +100,8 @@ export async function POST(req: NextRequest) {
       if (done) break;
       acc += value;
     }
-    // Try to parse JSON
-    let summaryText = "Created tickets based on your requirements.";
-    let ticketsJson: TicketsPayload | null = null;
-    
-    // Try to extract JSON from the response (may have extra text)
-    try {
-      // Look for JSON block in the response
-      let jsonStr = acc.trim();
-      
-      // Try to extract JSON if it's wrapped in markdown code blocks
-      const jsonMatch = jsonStr.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-      if (jsonMatch) {
-        jsonStr = jsonMatch[1];
-      } else if (jsonStr.startsWith('{') && jsonStr.endsWith('}')) {
-        // Already clean JSON
-      } else {
-        // Try to find JSON block in the text
-        const startIndex = jsonStr.indexOf('{');
-        const lastIndex = jsonStr.lastIndexOf('}');
-        if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
-          jsonStr = jsonStr.substring(startIndex, lastIndex + 1);
-        }
-      }
-      
-      const objUnknown = JSON.parse(jsonStr) as unknown;
-      const parsed = TicketsPayloadSchema.safeParse(objUnknown);
-      
-      if (parsed.success) {
-        ticketsJson = parsed.data;
-        const count = parsed.data.tickets.length;
-        const reasoning = parsed.data.reasoning || "Breaking down requirements into actionable tickets";
-        summaryText = `Created ${count} ticket${count === 1 ? "" : "s"}.\n\nReasoning: ${reasoning}`;
-      } else {
-        summaryText = "Created tickets, but there was an issue parsing the details. Please check the ticket modal.";
-      }
-    } catch (error) {
-      summaryText = "Created tickets based on your requirements, but couldn't parse the JSON format. Please try again.";
-    }
+    // Parse tickets JSON and generate a concise summary
+    const { payload: ticketsJson, summaryText } = parseTicketsFromText(acc);
     // Persist message with optional ticketsJson
     try {
       await createMessage({

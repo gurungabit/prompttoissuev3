@@ -56,7 +56,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       provider,
       model,
     }),
-    [spec, provider, model],
+    [spec, provider, model]
   );
 
   return (
