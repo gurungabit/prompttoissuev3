@@ -16,6 +16,7 @@
   "dependencies": {
     "@ai-sdk/google": "^2.0.12",
     "@ai-sdk/openai": "^2.0.24",
+    "@modelcontextprotocol/sdk": "^1.17.5",
     "ai": "^5.0.32",
     "drizzle-orm": "^0.44.5",
     "lucide-react": "^0.542.0",
