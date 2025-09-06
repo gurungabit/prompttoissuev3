@@ -16,6 +16,8 @@ const LANG_ALIASES: Record<string, string> = {
   yml: "yaml",
   shell: "bash",
   sh: "bash",
+  typescript: "ts",
+  javascript: "js",
   md: "markdown",
   plaintext: "plaintext",
   plain: "plaintext",
