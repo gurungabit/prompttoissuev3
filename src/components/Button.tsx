@@ -18,13 +18,26 @@ function classes(variant: Variant, size: Size) {
       : variant === "outline"
         ? "border border-[color:var(--color-border)] text-[color:var(--color-text)] bg-[color:var(--color-card)] hover:bg-[color:var(--color-surface)]"
         : "text-[color:var(--color-text)] hover:bg-[color:var(--color-surface)]";
-  const s = size === "sm" ? "h-8 px-3 text-sm" : size === "lg" ? "h-12 px-5" : "h-10 px-4";
+  const s =
+    size === "sm"
+      ? "h-8 px-3 text-sm"
+      : size === "lg"
+        ? "h-12 px-5"
+        : "h-10 px-4";
   return `${base} ${v} ${s}`;
 }
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant = "outline", size = "md", ...props },
-  ref,
-) {
-  return <button ref={ref} className={`${classes(variant, size)} ${className ?? ""}`} {...props} />;
-});
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
+    { className, variant = "outline", size = "md", ...props },
+    ref,
+  ) {
+    return (
+      <button
+        ref={ref}
+        className={`${classes(variant, size)} ${className ?? ""}`}
+        {...props}
+      />
+    );
+  },
+);

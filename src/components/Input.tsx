@@ -1,5 +1,5 @@
 "use client";
-import { type InputHTMLAttributes, forwardRef } from "react";
+import { forwardRef, type InputHTMLAttributes } from "react";
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   density?: "compact" | "comfortable";
@@ -18,4 +18,3 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     />
   );
 });
-

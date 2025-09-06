@@ -1,14 +1,22 @@
 import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { getDb } from "./client";
-import { messages, threads, threadReads, users } from "./schema";
+import { messages, threadReads, threads, users } from "./schema";
 
-export async function listThreads({ q, archived }: { q?: string; archived?: boolean }) {
+export async function listThreads({
+  q,
+  archived,
+}: {
+  q?: string;
+  archived?: boolean;
+}) {
   const db = getDb();
   const where = [] as any[];
   if (typeof archived === "boolean") where.push(eq(threads.archived, archived));
   if (q && q.trim()) {
     const needle = `%${q.trim()}%`;
-    where.push(or(ilike(threads.title, needle), ilike(threads.summaryText, needle)));
+    where.push(
+      or(ilike(threads.title, needle), ilike(threads.summaryText, needle)),
+    );
   }
   const rows = await db
     .select()
@@ -22,7 +30,11 @@ export async function getOrCreateDevUserId() {
   const db = getDb();
   const email = "dev@local";
   const name = "Developer";
-  const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  const existing = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
   if (existing.length > 0) return existing[0].id;
   const [row] = await db
     .insert(users)
@@ -31,7 +43,13 @@ export async function getOrCreateDevUserId() {
   return row.id;
 }
 
-export async function createThread({ title, ownerId }: { title?: string; ownerId?: string }) {
+export async function createThread({
+  title,
+  ownerId,
+}: {
+  title?: string;
+  ownerId?: string;
+}) {
   const db = getDb();
   const owner = ownerId ?? (await getOrCreateDevUserId());
   const [row] = await db
@@ -41,7 +59,10 @@ export async function createThread({ title, ownerId }: { title?: string; ownerId
   return row;
 }
 
-export async function patchThread(id: string, patch: Partial<typeof threads.$inferInsert>) {
+export async function patchThread(
+  id: string,
+  patch: Partial<typeof threads.$inferInsert>,
+) {
   const db = getDb();
   await db.update(threads).set(patch).where(eq(threads.id, id));
 }
@@ -53,7 +74,11 @@ export async function deleteThread(id: string) {
 
 export async function listMessages(threadId: string) {
   const db = getDb();
-  const rows = await db.select().from(messages).where(eq(messages.threadId, threadId)).orderBy(messages.createdAt);
+  const rows = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.threadId, threadId))
+    .orderBy(messages.createdAt);
   return rows;
 }
 
@@ -65,11 +90,18 @@ export async function createMessage(data: typeof messages.$inferInsert) {
 
 export async function getThread(id: string) {
   const db = getDb();
-  const [row] = await db.select().from(threads).where(eq(threads.id, id)).limit(1);
+  const [row] = await db
+    .select()
+    .from(threads)
+    .where(eq(threads.id, id))
+    .limit(1);
   return row ?? null;
 }
 
-export async function patchMessage(id: string, patch: Partial<typeof messages.$inferInsert>) {
+export async function patchMessage(
+  id: string,
+  patch: Partial<typeof messages.$inferInsert>,
+) {
   const db = getDb();
   await db.update(messages).set(patch).where(eq(messages.id, id));
 }
@@ -79,7 +111,11 @@ export async function deleteMessage(id: string) {
   await db.delete(messages).where(eq(messages.id, id));
 }
 
-export async function markThreadRead(userId: string | undefined, threadId: string, lastReadAt: Date = new Date()) {
+export async function markThreadRead(
+  userId: string | undefined,
+  threadId: string,
+  lastReadAt: Date = new Date(),
+) {
   const db = getDb();
   const uid = userId ?? (await getOrCreateDevUserId());
   await db
@@ -92,11 +128,20 @@ export async function markThreadRead(userId: string | undefined, threadId: strin
 }
 
 export async function getThreadReads(userId: string, threadIds: string[]) {
-  if (threadIds.length === 0) return [] as { threadId: string; lastReadAt: Date }[];
+  if (threadIds.length === 0)
+    return [] as { threadId: string; lastReadAt: Date }[];
   const db = getDb();
   const rows = await db
-    .select({ threadId: threadReads.threadId, lastReadAt: threadReads.lastReadAt })
+    .select({
+      threadId: threadReads.threadId,
+      lastReadAt: threadReads.lastReadAt,
+    })
     .from(threadReads)
-    .where(and(eq(threadReads.userId, userId), inArray(threadReads.threadId, threadIds)));
+    .where(
+      and(
+        eq(threadReads.userId, userId),
+        inArray(threadReads.threadId, threadIds),
+      ),
+    );
   return rows;
 }

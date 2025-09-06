@@ -49,7 +49,8 @@
 }
 
 /* Base app styles */
-html, body {
+html,
+body {
   background-color: var(--color-bg);
   color: var(--color-text);
 }
@@ -58,4 +59,3 @@ html, body {
 :where(button, a, input, textarea, [role="button"]) {
   outline-color: var(--color-ring);
 }
-

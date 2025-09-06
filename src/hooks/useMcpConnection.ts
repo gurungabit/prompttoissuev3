@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import type { McpServerConfig } from "../../mcp/config";
 
 export function useMcpConnection(server: McpServerConfig | null) {
-  const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "connecting" | "connected" | "error"
+  >("idle");
   useEffect(() => {
     if (!server || !server.enabled) return;
     setStatus("connecting");
@@ -12,4 +14,3 @@ export function useMcpConnection(server: McpServerConfig | null) {
   }, [server?.id, server?.enabled]);
   return { status };
 }
-

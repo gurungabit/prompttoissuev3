@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "../context/Settings";
 import { toSpecifier } from "../lib/llm-config";
 
@@ -13,7 +13,12 @@ type ModelOption = {
 
 // For now, expose a single Gemini option as requested
 const OPTIONS: readonly ModelOption[] = [
-  { id: toSpecifier("google", "gemini-2.0-flash"), label: "Gemini 2.0 Flash", provider: "google", model: "gemini-2.0-flash" },
+  {
+    id: toSpecifier("google", "gemini-2.0-flash"),
+    label: "Gemini 2.0 Flash",
+    provider: "google",
+    model: "gemini-2.0-flash",
+  },
 ] as const;
 
 export function ModelPicker() {
@@ -22,12 +27,18 @@ export function ModelPicker() {
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement | null>(null);
 
-  const selected = useMemo(() => OPTIONS.find((o) => o.id === spec) ?? OPTIONS[0], [spec]);
+  const selected = useMemo(
+    () => OPTIONS.find((o) => o.id === spec) ?? OPTIONS[0],
+    [spec],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return OPTIONS;
-    return OPTIONS.filter((o) => o.label.toLowerCase().includes(q) || o.model.toLowerCase().includes(q));
+    return OPTIONS.filter(
+      (o) =>
+        o.label.toLowerCase().includes(q) || o.model.toLowerCase().includes(q),
+    );
   }, [query]);
 
   useEffect(() => {
@@ -87,14 +98,18 @@ export function ModelPicker() {
           </div>
           <div className="max-h-[50vh] overflow-y-auto py-1">
             {filtered.length === 0 && (
-              <div className="px-3 py-2 text-sm text-[color:var(--color-muted)]">No models</div>
+              <div className="px-3 py-2 text-sm text-[color:var(--color-muted)]">
+                No models
+              </div>
             )}
             {filtered.map((opt) => (
               <button
                 key={opt.id}
                 onClick={() => handleSelect(opt)}
                 className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-[color:var(--color-card)] cursor-pointer ${
-                  opt.id === selected.id ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text)]"
+                  opt.id === selected.id
+                    ? "text-[color:var(--color-primary)]"
+                    : "text-[color:var(--color-text)]"
                 }`}
                 role="option"
                 aria-selected={opt.id === selected.id}
@@ -111,4 +126,3 @@ export function ModelPicker() {
 }
 
 export default ModelPicker;
-

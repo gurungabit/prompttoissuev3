@@ -8,14 +8,25 @@ type Ctx = {
 
 const ThreadSelectionContext = createContext<Ctx | null>(null);
 
-export function ThreadSelectionProvider({ children }: { children: React.ReactNode }) {
+export function ThreadSelectionProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const value = useMemo(() => ({ selectedId, setSelectedId }), [selectedId]);
-  return <ThreadSelectionContext.Provider value={value}>{children}</ThreadSelectionContext.Provider>;
+  return (
+    <ThreadSelectionContext.Provider value={value}>
+      {children}
+    </ThreadSelectionContext.Provider>
+  );
 }
 
 export function useThreadSelection() {
   const ctx = useContext(ThreadSelectionContext);
-  if (!ctx) throw new Error("useThreadSelection must be used within ThreadSelectionProvider");
+  if (!ctx)
+    throw new Error(
+      "useThreadSelection must be used within ThreadSelectionProvider",
+    );
   return ctx;
 }

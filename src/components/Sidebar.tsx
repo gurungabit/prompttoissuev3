@@ -1,8 +1,16 @@
 "use client";
+import {
+  Edit,
+  MoreHorizontal,
+  PanelLeft,
+  Pin,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
-import { PanelLeft, Plus, Search, MoreHorizontal, Edit, Pin, Trash2 } from "lucide-react";
-import { SearchModal } from "./SearchModal";
 import { ConfirmModal } from "./ConfirmModal";
+import { SearchModal } from "./SearchModal";
 
 export type SidebarThread = {
   id: string;
@@ -25,13 +33,24 @@ export type SidebarProps = {
   onDeleteThread?: (id: string) => void;
 };
 
-export function Sidebar({ threads, selectedId, onSelect, onCreate, collapsed, onToggleCollapse, onRenameThread, onPinThread, onDeleteThread }: SidebarProps) {
+export function Sidebar({
+  threads,
+  selectedId,
+  onSelect,
+  onCreate,
+  collapsed,
+  onToggleCollapse,
+  onRenameThread,
+  onPinThread,
+  onDeleteThread,
+}: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchModal, setShowSearchModal] = useState(false);
 
-  const filteredThreads = threads.filter((thread) =>
-    thread.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    thread.preview.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredThreads = threads.filter(
+    (thread) =>
+      thread.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      thread.preview.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   if (collapsed) {
@@ -44,7 +63,10 @@ export function Sidebar({ threads, selectedId, onSelect, onCreate, collapsed, on
             className="p-2 mx-2 mb-2 hover:bg-[color:var(--color-card)] hover:scale-110 rounded-lg transition-all duration-200 cursor-pointer group"
             title="Expand sidebar"
           >
-            <PanelLeft size={20} className="text-[color:var(--color-muted)] group-hover:text-[color:var(--color-text)] rotate-180 transition-colors" />
+            <PanelLeft
+              size={20}
+              className="text-[color:var(--color-muted)] group-hover:text-[color:var(--color-text)] rotate-180 transition-colors"
+            />
           </button>
 
           {/* New Chat */}
@@ -53,7 +75,10 @@ export function Sidebar({ threads, selectedId, onSelect, onCreate, collapsed, on
             className="p-2 mx-2 mb-2 hover:bg-[color:var(--color-card)] hover:scale-110 rounded-lg transition-all duration-200 cursor-pointer group"
             title="New conversation"
           >
-            <Plus size={20} className="text-[color:var(--color-muted)] group-hover:text-[color:var(--color-text)] transition-colors" />
+            <Plus
+              size={20}
+              className="text-[color:var(--color-muted)] group-hover:text-[color:var(--color-text)] transition-colors"
+            />
           </button>
 
           {/* Search */}
@@ -62,7 +87,10 @@ export function Sidebar({ threads, selectedId, onSelect, onCreate, collapsed, on
             className="p-2 mx-2 hover:bg-[color:var(--color-card)] hover:scale-110 rounded-lg transition-all duration-200 cursor-pointer group"
             title="Search conversations"
           >
-            <Search size={20} className="text-[color:var(--color-muted)] group-hover:text-[color:var(--color-text)] transition-colors" />
+            <Search
+              size={20}
+              className="text-[color:var(--color-muted)] group-hover:text-[color:var(--color-text)] transition-colors"
+            />
           </button>
         </div>
 
@@ -83,7 +111,9 @@ export function Sidebar({ threads, selectedId, onSelect, onCreate, collapsed, on
         {/* Header */}
         <div className="p-4 border-b border-[color:var(--color-border)]">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-[color:var(--color-text)]">Conversations</h2>
+            <h2 className="font-semibold text-[color:var(--color-text)]">
+              Conversations
+            </h2>
             <button
               onClick={onToggleCollapse}
               className="p-1 hover:bg-[color:var(--color-card)] rounded-lg transition-colors cursor-pointer"
@@ -92,7 +122,7 @@ export function Sidebar({ threads, selectedId, onSelect, onCreate, collapsed, on
               <PanelLeft size={16} className="text-[color:var(--color-text)]" />
             </button>
           </div>
-          
+
           {/* New Conversation Button */}
           <button
             onClick={onCreate}
@@ -119,7 +149,9 @@ export function Sidebar({ threads, selectedId, onSelect, onCreate, collapsed, on
           <div className="space-y-2">
             {filteredThreads.length === 0 ? (
               <div className="text-center py-8 text-[color:var(--color-muted)] text-sm">
-                {searchQuery ? "No matching conversations" : "No conversations yet"}
+                {searchQuery
+                  ? "No matching conversations"
+                  : "No conversations yet"}
               </div>
             ) : (
               filteredThreads.map((thread) => (
@@ -128,9 +160,19 @@ export function Sidebar({ threads, selectedId, onSelect, onCreate, collapsed, on
                   thread={thread}
                   isSelected={selectedId === thread.id}
                   onSelect={() => onSelect(thread.id)}
-                  onRename={onRenameThread ? (newTitle) => onRenameThread(thread.id, newTitle) : undefined}
-                  onPin={onPinThread ? () => onPinThread(thread.id, !thread.pinned) : undefined}
-                  onDelete={onDeleteThread ? () => onDeleteThread(thread.id) : undefined}
+                  onRename={
+                    onRenameThread
+                      ? (newTitle) => onRenameThread(thread.id, newTitle)
+                      : undefined
+                  }
+                  onPin={
+                    onPinThread
+                      ? () => onPinThread(thread.id, !thread.pinned)
+                      : undefined
+                  }
+                  onDelete={
+                    onDeleteThread ? () => onDeleteThread(thread.id) : undefined
+                  }
                 />
               ))
             )}
@@ -149,7 +191,14 @@ export function Sidebar({ threads, selectedId, onSelect, onCreate, collapsed, on
   );
 }
 
-function ThreadItem({ thread, isSelected, onSelect, onRename, onPin, onDelete }: {
+function ThreadItem({
+  thread,
+  isSelected,
+  onSelect,
+  onRename,
+  onPin,
+  onDelete,
+}: {
   thread: SidebarThread;
   isSelected: boolean;
   onSelect: () => void;
@@ -213,7 +262,7 @@ function ThreadItem({ thread, isSelected, onSelect, onRename, onPin, onDelete }:
     <div className="relative group">
       <button
         onClick={isRenaming ? undefined : onSelect}
-        className={`w-full p-3 text-left transition-colors ${!isRenaming ? 'cursor-pointer' : 'cursor-default'} ${
+        className={`w-full p-3 text-left transition-colors ${!isRenaming ? "cursor-pointer" : "cursor-default"} ${
           isSelected
             ? "bg-[color:var(--color-card)] border-l-2 border-[color:var(--color-primary)] rounded-r-lg text-[color:var(--color-text)]"
             : "hover:bg-[color:var(--color-card)] text-[color:var(--color-text)] rounded-lg"
@@ -247,7 +296,9 @@ function ThreadItem({ thread, isSelected, onSelect, onRename, onPin, onDelete }:
           )}
           <div className="flex items-center gap-1">
             {thread.pinned && (
-              <div className={`w-2 h-2 rounded-full ${isSelected ? "bg-[color:var(--color-primary)]" : "bg-[color:var(--color-primary)]"}`}></div>
+              <div
+                className={`w-2 h-2 rounded-full ${isSelected ? "bg-[color:var(--color-primary)]" : "bg-[color:var(--color-primary)]"}`}
+              ></div>
             )}
           </div>
         </div>
@@ -276,11 +327,11 @@ function ThreadItem({ thread, isSelected, onSelect, onRename, onPin, onDelete }:
       {showMenu && (
         <>
           {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-20" 
+          <div
+            className="fixed inset-0 z-20"
             onClick={() => setShowMenu(false)}
           />
-          
+
           {/* Menu */}
           <div className="absolute top-8 right-0 z-30 w-48 bg-[color:var(--color-surface)] border border-[color:var(--color-border)] rounded-lg shadow-lg py-1">
             {onRename && (

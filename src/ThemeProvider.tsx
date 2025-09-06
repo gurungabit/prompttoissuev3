@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState, createContext, useContext } from "react";
-import { Sun, Moon } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 type Theme = "light" | "dark";
 
@@ -16,7 +16,8 @@ const STORAGE_KEY = "ui.theme";
 
 function getSystemTheme(): Theme {
   if (typeof window === "undefined") return "light";
-  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+  return window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
 }
@@ -55,10 +56,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setTheme: (t) => setThemeState(t),
       toggle: () => setThemeState((t) => (t === "light" ? "dark" : "light")),
     }),
-    [theme]
+    [theme],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useTheme() {
@@ -71,8 +74,10 @@ export function ThemeToggleButton() {
   const { toggle, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const title = mounted ? `Switch to ${theme === "light" ? "dark" : "light"} mode` : "Toggle theme";
-  
+  const title = mounted
+    ? `Switch to ${theme === "light" ? "dark" : "light"} mode`
+    : "Toggle theme";
+
   return (
     <button
       aria-label="Toggle theme"

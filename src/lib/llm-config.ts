@@ -35,7 +35,7 @@ export const LlmConfigSchema = z.object({
   defaultSpec: z.string(),
   providers: z.record(
     z.string(),
-    z.object({ label: z.string(), models: z.array(z.string()) })
+    z.object({ label: z.string(), models: z.array(z.string()) }),
   ),
 });
 
@@ -47,7 +47,7 @@ export const LLM_CONFIG = LlmConfigSchema.parse({
 export type LlmConfig = z.infer<typeof LlmConfigSchema>;
 
 export function isKnownProvider(p: string): p is ProviderId {
-  return Object.prototype.hasOwnProperty.call(PROVIDERS, p);
+  return Object.hasOwn(PROVIDERS, p);
 }
 
 export function isSupportedModel(spec: string | null | undefined): boolean {

@@ -1,7 +1,11 @@
 "use client";
 import useSWRInfinite from "swr/infinite";
 import { z } from "zod";
-import { PaginatedThreadsWithPreview, ThreadListItemSchema, type ThreadListItem } from "../lib/schemas";
+import {
+  PaginatedThreadsWithPreview,
+  type ThreadListItem,
+  ThreadListItemSchema,
+} from "../lib/schemas";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -19,7 +23,8 @@ export type UseThreadsOptions = {
 export function useThreads(opts: UseThreadsOptions = {}) {
   const base = new URLSearchParams();
   if (opts.query) base.set("q", opts.query);
-  if (typeof opts.archived === "boolean") base.set("archived", String(opts.archived));
+  if (typeof opts.archived === "boolean")
+    base.set("archived", String(opts.archived));
   const baseQs = base.toString();
   const getKey = (index: number, prev: any) => {
     if (prev && !prev.nextCursor) return null;
@@ -28,7 +33,8 @@ export function useThreads(opts: UseThreadsOptions = {}) {
     qs.set("limit", "20");
     return `/api/threads?${qs.toString()}`;
   };
-  const { data, error, size, setSize, isLoading, isValidating } = useSWRInfinite(getKey, fetcher);
+  const { data, error, size, setSize, isLoading, isValidating } =
+    useSWRInfinite(getKey, fetcher);
 
   async function create(title?: string) {
     const res = await fetch("/api/threads", {
@@ -42,7 +48,15 @@ export function useThreads(opts: UseThreadsOptions = {}) {
     return thread;
   }
 
-  async function patch(id: string, patch: Partial<{ title: string; archived: boolean; pinned: boolean; defaultModel: string }>) {
+  async function patch(
+    id: string,
+    patch: Partial<{
+      title: string;
+      archived: boolean;
+      pinned: boolean;
+      defaultModel: string;
+    }>,
+  ) {
     const res = await fetch(`/api/threads?id=${encodeURIComponent(id)}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -53,7 +67,9 @@ export function useThreads(opts: UseThreadsOptions = {}) {
   }
 
   async function remove(id: string) {
-    const res = await fetch(`/api/threads?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    const res = await fetch(`/api/threads?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
     if (!res.ok) throw new Error("Failed to delete thread");
     await setSize(1);
   }

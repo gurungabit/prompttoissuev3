@@ -17,10 +17,15 @@ function makePool() {
       user: env.POSTGRES_USER ?? "postgres",
       password: env.POSTGRES_PASSWORD ?? "postgres",
       database: env.POSTGRES_DB ?? "app",
-      ssl: process.env.POSTGRES_SSL === "true" ? { rejectUnauthorized: false } : false,
+      ssl:
+        process.env.POSTGRES_SSL === "true"
+          ? { rejectUnauthorized: false }
+          : false,
     });
   } else {
-    throw new Error("No Postgres configuration found. Set DATABASE_URL or POSTGRES_* envs.");
+    throw new Error(
+      "No Postgres configuration found. Set DATABASE_URL or POSTGRES_* envs.",
+    );
   }
   return pool;
 }

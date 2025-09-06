@@ -1,7 +1,14 @@
 "use client";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
-import { DEFAULT_SPEC, isSupportedModel, parseSpecifier, toSpecifier, type ProviderId, PROVIDERS } from "../lib/llm-config";
+import {
+  DEFAULT_SPEC,
+  isSupportedModel,
+  PROVIDERS,
+  type ProviderId,
+  parseSpecifier,
+  toSpecifier,
+} from "../lib/llm-config";
 
 const STORAGE_KEY = "llm.defaultSpec";
 
@@ -41,14 +48,22 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const { provider, model } = parseSpecifier(spec);
 
-  const value = useMemo<SettingsContextValue>(() => ({
-    spec,
-    setSpec: (next) => setSpecState(isSupportedModel(next) ? next : DEFAULT_SPEC),
-    provider,
-    model,
-  }), [spec, provider, model]);
+  const value = useMemo<SettingsContextValue>(
+    () => ({
+      spec,
+      setSpec: (next) =>
+        setSpecState(isSupportedModel(next) ? next : DEFAULT_SPEC),
+      provider,
+      model,
+    }),
+    [spec, provider, model],
+  );
 
-  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
+  return (
+    <SettingsContext.Provider value={value}>
+      {children}
+    </SettingsContext.Provider>
+  );
 }
 
 export function useSettings() {
@@ -57,7 +72,14 @@ export function useSettings() {
   return ctx;
 }
 
-export function listProviders(): Array<{ id: ProviderId; label: string; models: readonly string[] }> {
-  return (Object.keys(PROVIDERS) as ProviderId[]).map((id) => ({ id, label: PROVIDERS[id].label, models: PROVIDERS[id].models }));
+export function listProviders(): Array<{
+  id: ProviderId;
+  label: string;
+  models: readonly string[];
+}> {
+  return (Object.keys(PROVIDERS) as ProviderId[]).map((id) => ({
+    id,
+    label: PROVIDERS[id].label,
+    models: PROVIDERS[id].models,
+  }));
 }
-

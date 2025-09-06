@@ -13,7 +13,10 @@ export type UseMessagesOptions = {
   cursor?: string | null;
 };
 
-export function useMessages(threadId: string | null, opts: UseMessagesOptions = {}) {
+export function useMessages(
+  threadId: string | null,
+  opts: UseMessagesOptions = {},
+) {
   const getKey = (index: number, prev: any) => {
     if (!threadId) return null;
     if (prev && !prev.nextCursor) return null;
@@ -23,9 +26,10 @@ export function useMessages(threadId: string | null, opts: UseMessagesOptions = 
     qs.set("limit", "50");
     return `/api/messages?${qs.toString()}`;
   };
-  const { data, error, isLoading, isValidating, mutate, size, setSize } = useSWRInfinite(getKey, fetcher, {
-    revalidateFirstPage: true,
-  });
+  const { data, error, isLoading, isValidating, mutate, size, setSize } =
+    useSWRInfinite(getKey, fetcher, {
+      revalidateFirstPage: true,
+    });
 
   async function sendUserMessage(content: string) {
     if (!threadId) throw new Error("threadId is required");

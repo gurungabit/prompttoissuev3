@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { env } from "../../../lib/env";
 
 export async function GET(_req: NextRequest) {
@@ -7,4 +7,3 @@ export async function GET(_req: NextRequest) {
   if (env.OPENAI_API_KEY) providers.push("openai");
   return Response.json({ providers });
 }
-

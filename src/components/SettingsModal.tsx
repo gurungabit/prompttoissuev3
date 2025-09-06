@@ -1,8 +1,8 @@
 "use client";
+import { Cog, X } from "lucide-react";
 import { useState } from "react";
-import { X, Cog } from "lucide-react";
-import { Card } from "./Card";
 import { Button } from "./Button";
+import { Card } from "./Card";
 
 export function SettingsButton() {
   const [open, setOpen] = useState(false);
@@ -25,9 +25,16 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 cursor-pointer" onClick={onClose} />
+      <div
+        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 cursor-pointer"
+        onClick={onClose}
+      />
       <div className="fixed inset-0 z-50 grid place-items-center p-4">
-        <Card className="w-full max-w-2xl shadow-[var(--shadow-elev-2)]" role="dialog" aria-modal>
+        <Card
+          className="w-full max-w-2xl shadow-[var(--shadow-elev-2)]"
+          role="dialog"
+          aria-modal
+        >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-[color:var(--color-border)]">
             <div className="flex items-center gap-2">
@@ -35,11 +42,19 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                 <Cog size={18} />
               </span>
               <div>
-                <div className="text-sm font-semibold text-[color:var(--color-text)]">Settings</div>
-                <div className="text-xs text-[color:var(--color-muted)]">Configure AI providers and models</div>
+                <div className="text-sm font-semibold text-[color:var(--color-text)]">
+                  Settings
+                </div>
+                <div className="text-xs text-[color:var(--color-muted)]">
+                  Configure AI providers and models
+                </div>
               </div>
             </div>
-            <button onClick={onClose} className="p-1 rounded hover:bg-[color:var(--color-surface)] cursor-pointer" aria-label="Close settings">
+            <button
+              onClick={onClose}
+              className="p-1 rounded hover:bg-[color:var(--color-surface)] cursor-pointer"
+              aria-label="Close settings"
+            >
               <X size={16} />
             </button>
           </div>
@@ -47,12 +62,18 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           {/* Tabs removed by request */}
 
           {/* Content intentionally left empty for future settings */}
-          <div className="p-6 text-sm text-[color:var(--color-muted)]">No settings yet.</div>
+          <div className="p-6 text-sm text-[color:var(--color-muted)]">
+            No settings yet.
+          </div>
 
           {/* Footer */}
           <div className="flex items-center justify-end gap-2 p-4 border-t border-[color:var(--color-border)]">
-            <Button size="sm" onClick={onClose}>Cancel</Button>
-            <Button size="sm" variant="solid" onClick={handleSave}>Save Changes</Button>
+            <Button size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="solid" onClick={handleSave}>
+              Save Changes
+            </Button>
           </div>
         </Card>
       </div>

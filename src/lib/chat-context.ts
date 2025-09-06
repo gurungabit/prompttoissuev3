@@ -34,7 +34,10 @@ export function buildContextMessages({
 
   const summary = thread.summaryText ?? undefined;
   const baseTokens = estimateTokens(summary ?? "");
-  const pinnedTokens = pinned.reduce((acc, m) => acc + estimateTokens(m.content), 0);
+  const pinnedTokens = pinned.reduce(
+    (acc, m) => acc + estimateTokens(m.content),
+    0,
+  );
 
   const remaining = Math.max(0, tokenBudget - baseTokens - pinnedTokens - 128);
   const tail: DbMessage[] = [];
@@ -53,18 +56,24 @@ export function buildContextMessages({
     prompt.push({ role: "system", content: m.content });
   }
   if (summary) {
-    prompt.push({ role: "system", content: `Thread summary (do not reveal directly):\n${summary}` });
+    prompt.push({
+      role: "system",
+      content: `Thread summary (do not reveal directly):\n${summary}`,
+    });
   }
   // pinned then tail, in order
   for (const m of [...pinned, ...tail]) {
     prompt.push({ role: m.role, content: m.content });
   }
 
-  const estimatedPromptTokens = prompt.reduce((acc, m) => acc + estimateTokens(typeof m.content === "string" ? m.content : ""), 0);
+  const estimatedPromptTokens = prompt.reduce(
+    (acc, m) =>
+      acc + estimateTokens(typeof m.content === "string" ? m.content : ""),
+    0,
+  );
   return { prompt, estimatedPromptTokens };
 }
 
 export function estimateTokensForText(text: string) {
   return estimateTokens(text);
 }
-

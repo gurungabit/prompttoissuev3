@@ -20,4 +20,3 @@ export const McpConfig = z.object({
   servers: z.array(McpServerConfig).default([]),
 });
 export type McpConfig = z.infer<typeof McpConfig>;
-

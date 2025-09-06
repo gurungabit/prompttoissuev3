@@ -1,8 +1,8 @@
 "use client";
-import { z } from "zod";
 import { useState } from "react";
-import type { McpServerConfig } from "../../mcp/config";
+import type { z } from "zod";
 import { invokeTool } from "../../mcp/adapter";
+import type { McpServerConfig } from "../../mcp/config";
 
 export function useMcpTool<TIn extends z.ZodTypeAny, TOut extends z.ZodTypeAny>(
   server: McpServerConfig | null,
@@ -19,7 +19,13 @@ export function useMcpTool<TIn extends z.ZodTypeAny, TOut extends z.ZodTypeAny>(
     setLoading(true);
     setError(null);
     try {
-      const res = await invokeTool({ server, tool, input, inputSchema, outputSchema });
+      const res = await invokeTool({
+        server,
+        tool,
+        input,
+        inputSchema,
+        outputSchema,
+      });
       setData(res);
       return res;
     } catch (e) {
@@ -32,4 +38,3 @@ export function useMcpTool<TIn extends z.ZodTypeAny, TOut extends z.ZodTypeAny>(
 
   return { run, loading, error, data };
 }
-

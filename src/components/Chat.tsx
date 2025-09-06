@@ -1,8 +1,11 @@
 "use client";
+import { ChevronsDown, Copy, RotateCcw, Send, Ticket } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Copy, RotateCcw, Send, ChevronsDown } from "lucide-react";
 import MarkdownMessage from "./MarkdownMessage";
 import ModelPicker from "./ModelPicker";
+import ModeToggle, { type Mode } from "./ModeToggle";
+import TicketsDrawer from "./TicketsDrawer";
+import type { TicketsPayload } from "../lib/tickets";
 
 export type ChatMessage = {
   id: string;
@@ -10,6 +13,7 @@ export type ChatMessage = {
   content: string;
   createdAt: string;
   pinned?: boolean;
+  ticketsJson?: TicketsPayload | null;
 };
 
 export type ChatProps = {
@@ -21,6 +25,8 @@ export type ChatProps = {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onTogglePin?: (id: string, nextPinned: boolean) => void | Promise<unknown>;
+  mode?: Mode;
+  onChangeMode?: (m: Mode) => void;
 };
 
 export function Chat({
@@ -28,6 +34,8 @@ export function Chat({
   onSend,
   onRegenerate,
   isStreaming,
+  mode = "assistant",
+  onChangeMode,
 }: ChatProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -36,6 +44,8 @@ export function Chat({
   const [hasBelow, setHasBelow] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
+
+  // console.log("Mode:", mode);
 
   const scrollToBottomNow = () => {
     const el = scrollRef.current;
@@ -47,13 +57,13 @@ export function Chat({
     const el = scrollRef.current;
     if (!el) return;
     try {
-      (el as any).scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     } catch {
       const start = el.scrollTop;
       const target = el.scrollHeight;
       const duration = 350;
       let startTime: number | null = null;
-      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+      const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
       const step = (ts: number) => {
         if (startTime === null) startTime = ts;
         const t = Math.min(1, (ts - startTime) / duration);
@@ -128,7 +138,7 @@ export function Chat({
       ro.observe(el);
     }
     return () => {
-      window.removeEventListener("resize", onResize as any);
+      window.removeEventListener("resize", onResize);
       if (ro) ro.disconnect();
     };
   }, []);
@@ -170,6 +180,8 @@ export function Chat({
     };
   }, []);
 
+  const [ticketOpenFor, setTicketOpenFor] = useState<string | null>(null);
+
   return (
     <div className="flex flex-col h-full bg-[color:var(--color-bg)]">
       {/* Main Content Area */}
@@ -179,23 +191,38 @@ export function Chat({
         style={{ overscrollBehaviorY: "contain", scrollbarGutter: "stable" }}
       >
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
+          <div
+            key={mode}
+            className="flex flex-col items-center justify-center h-full text-center"
+          >
             <div className="mb-8">
               <h2 className="text-3xl font-semibold text-[color:var(--color-text)] mb-4">
-                How can I help you today?
+                {mode === "assistant"
+                  ? "How can I help you today?"
+                  : "What tickets should we create?"}
               </h2>
               <p className="text-lg text-[color:var(--color-muted)]">
-                I can help transform your ideas into GitHub issues
+                {mode === "assistant"
+                  ? "Ask questions, get explanations, and draft content."
+                  : "I’ll turn your requirements into structured, editable tickets."}
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-              {[
-                "Create a bug report",
-                "Draft a feature request",
-                "Generate issue template",
-                "Structure documentation",
-              ].map((example, i) => (
+              {(mode === "assistant"
+                ? [
+                    "Explain this error log",
+                    "Review this pull request",
+                    "Convert this code to TypeScript",
+                    "Summarize these requirements",
+                  ]
+                : [
+                    "Create tickets for onboarding flow",
+                    "Break down feature: file uploads",
+                    "Bugfix tickets for payment retries",
+                    "Documentation tasks for API v2",
+                  ]
+              ).map((example, i) => (
                 <button
                   key={i}
                   onClick={() => sendAndScroll(example)}
@@ -263,6 +290,20 @@ export function Chat({
                             Regenerate
                           </span>
                         </span>
+                        {Boolean(message.ticketsJson) && (
+                          <span className="relative inline-block">
+                            <button
+                              onClick={() => setTicketOpenFor(message.id)}
+                              className="peer p-1 rounded hover:bg-[color:var(--color-card)] text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] cursor-pointer"
+                              aria-label="Show tickets"
+                            >
+                              <Ticket size={16} />
+                            </button>
+                            <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-xs rounded bg-[color:var(--color-surface)] text-[color:var(--color-text)] border border-[color:var(--color-border)] shadow opacity-0 peer-hover:opacity-100">
+                              Show tickets
+                            </span>
+                          </span>
+                        )}
                       </>
                     )}
                   </div>
@@ -298,7 +339,7 @@ export function Chat({
           <ModelPicker />
           <button
             onClick={scrollToBottomSmooth}
-            className={`mx-auto p-2 ml-50 rounded-full bg-[color:var(--color-surface)] border border-[color:var(--color-border)] shadow hover:bg-[color:var(--color-card)] text-[color:var(--color-text)] cursor-pointer transition-opacity ${
+            className={`mx-auto p-2 rounded-full bg-[color:var(--color-surface)] border border-[color:var(--color-border)] shadow hover:bg-[color:var(--color-card)] text-[color:var(--color-text)] cursor-pointer transition-opacity ${
               hasBelow ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
             aria-label="Jump to latest"
@@ -306,6 +347,12 @@ export function Chat({
           >
             <ChevronsDown size={18} />
           </button>
+          <div className="ml-auto">
+            <ModeToggle
+              value={mode ?? "assistant"}
+              onChange={(m) => onChangeMode?.(m)}
+            />
+          </div>
         </div>
         <form onSubmit={handleSubmit} className="relative">
           <textarea
@@ -328,6 +375,13 @@ export function Chat({
           </button>
         </form>
       </div>
+      {/* Tickets Drawer */}
+      {ticketOpenFor && (
+        <TicketsDrawer
+          messageId={ticketOpenFor}
+          onClose={() => setTicketOpenFor(null)}
+        />
+      )}
     </div>
   );
 }

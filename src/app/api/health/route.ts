@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { getDb } from "../../../db/client";
 import { threads } from "../../../db/schema";
 
@@ -9,7 +9,9 @@ export async function GET(_req: NextRequest) {
     await db.select({ id: threads.id }).from(threads).limit(1);
     return Response.json({ ok: true });
   } catch (e) {
-    return Response.json({ ok: false, error: (e as Error).message }, { status: 500 });
+    return Response.json(
+      { ok: false, error: (e as Error).message },
+      { status: 500 },
+    );
   }
 }
-

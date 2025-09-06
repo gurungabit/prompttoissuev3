@@ -12,4 +12,3 @@ export function Card({ className, children, ...props }: CardProps) {
     </div>
   );
 }
-

@@ -1,11 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useThreadSelection } from "../context/ThreadSelection";
+import { useThreads } from "../hooks/useThreads";
 import { ThemeToggleButton } from "../ThemeProvider";
 import { SettingsButton } from "./SettingsModal";
 import { Sidebar } from "./Sidebar";
-import { useThreads } from "../hooks/useThreads";
-import { useThreadSelection } from "../context/ThreadSelection";
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -16,10 +16,10 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
 
   // Extract thread ID from URL if we're on a chat page
   useEffect(() => {
-    const chatMatch = pathname.match(/^\/chat\/([^\/]+)$/);
+    const chatMatch = pathname.match(/^\/chat\/([^/]+)$/);
     if (chatMatch) {
       setSelectedId(chatMatch[1]);
-    } else if (pathname === '/') {
+    } else if (pathname === "/") {
       setSelectedId(null);
     }
   }, [pathname, setSelectedId]);
@@ -49,7 +49,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           }}
           onCreate={() => {
             setSelectedId(null);
-            router.push('/');
+            router.push("/");
           }}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}

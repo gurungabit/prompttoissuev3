@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TicketsPayloadSchema } from "./tickets";
 
 export const MessageRole = z.enum(["user", "assistant", "system"]);
 
@@ -8,6 +9,7 @@ export const MessageSchema = z.object({
   role: MessageRole,
   content: z.string(),
   model: z.string().nullish(),
+  ticketsJson: TicketsPayloadSchema.optional().nullable(),
   createdAt: z.string(), // ISO
   pinned: z.boolean().optional().default(false),
 });
@@ -47,7 +49,9 @@ export const PaginatedThreadsWithPreview = z.object({
   items: z.array(ThreadListItemSchema),
   nextCursor: z.string().optional().nullable(),
 });
-export type PaginatedThreadsWithPreview = z.infer<typeof PaginatedThreadsWithPreview>;
+export type PaginatedThreadsWithPreview = z.infer<
+  typeof PaginatedThreadsWithPreview
+>;
 
 export const PaginatedMessages = z.object({
   items: z.array(MessageSchema),

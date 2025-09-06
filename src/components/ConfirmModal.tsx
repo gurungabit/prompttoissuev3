@@ -12,15 +12,15 @@ export type ConfirmModalProps = {
   dangerous?: boolean;
 };
 
-export function ConfirmModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  title, 
-  message, 
-  confirmText = "Confirm", 
+export function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmText = "Confirm",
   cancelText = "Cancel",
-  dangerous = false 
+  dangerous = false,
 }: ConfirmModalProps) {
   if (!isOpen) return null;
 
@@ -32,11 +32,18 @@ export function ConfirmModal({
   return (
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 cursor-pointer" 
+      <div
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 cursor-pointer"
+        role="button"
+        tabIndex={0}
+        aria-label="Close dialog"
         onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") onClose();
+          if (e.key === "Escape") onClose();
+        }}
       />
-      
+
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-[color:var(--color-surface)] rounded-lg shadow-lg w-full max-w-md">
@@ -45,7 +52,10 @@ export function ConfirmModal({
             <div className="flex items-center gap-3">
               {dangerous && (
                 <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                  <AlertTriangle size={16} className="text-red-600 dark:text-red-400" />
+                  <AlertTriangle
+                    size={16}
+                    className="text-red-600 dark:text-red-400"
+                  />
                 </div>
               )}
               <h2 className="text-lg font-semibold text-[color:var(--color-text)]">
@@ -53,6 +63,7 @@ export function ConfirmModal({
               </h2>
             </div>
             <button
+              type="button"
               onClick={onClose}
               className="p-1 hover:bg-[color:var(--color-card)] rounded-lg transition-colors cursor-pointer"
             >
@@ -62,19 +73,19 @@ export function ConfirmModal({
 
           {/* Content */}
           <div className="p-4">
-            <p className="text-[color:var(--color-text)] mb-6">
-              {message}
-            </p>
+            <p className="text-[color:var(--color-text)] mb-6">{message}</p>
 
             {/* Actions */}
             <div className="flex items-center gap-3 justify-end">
               <button
+                type="button"
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-[color:var(--color-text)] bg-[color:var(--color-card)] border border-[color:var(--color-border)] rounded-lg hover:bg-[color:var(--color-surface)] transition-colors cursor-pointer"
               >
                 {cancelText}
               </button>
               <button
+                type="button"
                 onClick={handleConfirm}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
                   dangerous

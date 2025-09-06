@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MessageSchema, ThreadSchema, type Message } from "../lib/schemas";
+import { type Message, MessageSchema, type ThreadSchema } from "../lib/schemas";
 
 const ChatContextSchema = z.object({
   system: z.array(MessageSchema).default([]),
@@ -19,14 +19,22 @@ export type BuildContextParams = {
 // Naive token estimator: ~4 chars per token
 const estimateTokens = (text: string) => Math.ceil(text.length / 4);
 
-export function buildChatContext({ thread, tokenBudget = 3200 }: BuildContextParams): ChatContext {
+export function buildChatContext({
+  thread,
+  tokenBudget = 3200,
+}: BuildContextParams): ChatContext {
   const system: Message[] = thread.messages.filter((m) => m.role === "system");
   const pinned: Message[] = thread.messages.filter((m) => m.pinned === true);
-  const nonPinned = thread.messages.filter((m) => !m.pinned && m.role !== "system");
+  const nonPinned = thread.messages.filter(
+    (m) => !m.pinned && m.role !== "system",
+  );
 
   const summary = thread.summaryText ?? undefined;
   const baseTokens = estimateTokens(summary ?? "");
-  const pinnedTokens = pinned.reduce((acc, m) => acc + estimateTokens(m.content), 0);
+  const pinnedTokens = pinned.reduce(
+    (acc, m) => acc + estimateTokens(m.content),
+    0,
+  );
 
   // Always include system + pinned, then fill the remaining budget with recent tail
   const remaining = Math.max(0, tokenBudget - baseTokens - pinnedTokens - 128); // headroom for response
@@ -42,4 +50,3 @@ export function buildChatContext({ thread, tokenBudget = 3200 }: BuildContextPar
 
   return ChatContextSchema.parse({ system, pinned, summary, tail });
 }
-

@@ -1,17 +1,27 @@
-import { NextRequest } from "next/server";
-import { z } from "zod";
-import { ThreadSchema } from "../../../lib/schemas";
-import { createThread, deleteThread, listThreads, patchThread } from "../../../db/actions";
 import { and, desc, eq, ilike, inArray, lt, or } from "drizzle-orm";
+import type { NextRequest } from "next/server";
+import { z } from "zod";
+import {
+  createThread,
+  deleteThread,
+  listThreads,
+  patchThread,
+} from "../../../db/actions";
 import { getDb } from "../../../db/client";
-import { messages, threads, threadReads } from "../../../db/schema";
+import { messages, threadReads, threads } from "../../../db/schema";
+import { ThreadSchema } from "../../../lib/schemas";
 
 function serializeThread(row: any) {
   return {
     ...row,
-    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+    createdAt:
+      row.createdAt instanceof Date
+        ? row.createdAt.toISOString()
+        : row.createdAt,
     summaryUpdatedAt:
-      row.summaryUpdatedAt instanceof Date ? row.summaryUpdatedAt.toISOString() : row.summaryUpdatedAt ?? null,
+      row.summaryUpdatedAt instanceof Date
+        ? row.summaryUpdatedAt.toISOString()
+        : (row.summaryUpdatedAt ?? null),
   };
 }
 
@@ -28,15 +38,20 @@ export async function GET(req: NextRequest) {
   if (!cursorParam) {
     const items = await listThreads({ q, archived });
     const page = items.slice(0, limit).map(serializeThread);
-    const nextCursor = page.length === limit ? makeCursor(page[page.length - 1]) : null;
-    
+    const nextCursor =
+      page.length === limit ? makeCursor(page[page.length - 1]) : null;
+
     // Fetch last message preview for the threads
     const ids = page.map((t) => t.id);
-    let previews: Record<string, string | null> = {};
+    const previews: Record<string, string | null> = {};
     if (ids.length > 0) {
       const db = getDb();
       const rows = await db
-        .select({ threadId: messages.threadId, content: messages.content, createdAt: messages.createdAt })
+        .select({
+          threadId: messages.threadId,
+          content: messages.content,
+          createdAt: messages.createdAt,
+        })
         .from(messages)
         .where(inArray(messages.threadId, ids))
         .orderBy(desc(messages.createdAt), desc(messages.id));
@@ -47,13 +62,13 @@ export async function GET(req: NextRequest) {
         previews[m.threadId] = m.content;
       }
     }
-    
+
     const itemsWithPreview = page.map((t) => ({
       ...t,
       lastMessagePreview: previews[t.id] ?? null,
-      unread: false // Simple fallback for unread status
+      unread: false, // Simple fallback for unread status
     }));
-    
+
     return Response.json({ items: itemsWithPreview, nextCursor });
   }
 
@@ -63,7 +78,9 @@ export async function GET(req: NextRequest) {
   if (typeof archived === "boolean") where.push(eq(threads.archived, archived));
   if (q && q.trim()) {
     const needle = `%${q.trim()}%`;
-    where.push(or(ilike(threads.title, needle), ilike(threads.summaryText, needle)));
+    where.push(
+      or(ilike(threads.title, needle), ilike(threads.summaryText, needle)),
+    );
   }
   if (cursor) {
     const createdAt = new Date(cursor.createdAt);
@@ -85,12 +102,18 @@ export async function GET(req: NextRequest) {
 
   // Fetch last message preview for the current page of thread ids
   const ids = page.map((t) => t.id);
-  let previews: Record<string, string | null> = {};
-  let recent: Array<{ threadId: string; content: string; createdAt: Date }> = [];
+  const previews: Record<string, string | null> = {};
+  let recent: Array<{ threadId: string; content: string; createdAt: Date }> =
+    [];
   if (ids.length > 0) {
     const db = getDb();
     const rows = await db
-      .select({ id: messages.id, threadId: messages.threadId, content: messages.content, createdAt: messages.createdAt })
+      .select({
+        id: messages.id,
+        threadId: messages.threadId,
+        content: messages.content,
+        createdAt: messages.createdAt,
+      })
       .from(messages)
       .where(inArray(messages.threadId, ids))
       .orderBy(desc(messages.createdAt), desc(messages.id));
@@ -105,23 +128,37 @@ export async function GET(req: NextRequest) {
   // Fetch last read per thread for the current user
   const USER_ID = "00000000-0000-0000-0000-000000000000";
   const reads = await getDb()
-    .select({ threadId: threadReads.threadId, lastReadAt: threadReads.lastReadAt })
+    .select({
+      threadId: threadReads.threadId,
+      lastReadAt: threadReads.lastReadAt,
+    })
     .from(threadReads)
     .where(inArray(threadReads.threadId, ids));
-  const readMap = new Map<string, Date>(reads.map((r) => [r.threadId, r.lastReadAt as Date]));
+  const readMap = new Map<string, Date>(
+    reads.map((r) => [r.threadId, r.lastReadAt as Date]),
+  );
 
   // Determine unread: latest message newer than lastReadAt
-  const latestMap = new Map<string, { content: string | null; createdAt: Date | null }>();
+  const latestMap = new Map<
+    string,
+    { content: string | null; createdAt: Date | null }
+  >();
   for (const t of page) latestMap.set(t.id, { content: null, createdAt: null });
   for (const m of recent) {
     const cur = latestMap.get(m.threadId);
-    if (cur && cur.createdAt == null) latestMap.set(m.threadId, { content: m.content, createdAt: m.createdAt as Date });
+    if (cur && cur.createdAt == null)
+      latestMap.set(m.threadId, {
+        content: m.content,
+        createdAt: m.createdAt as Date,
+      });
   }
 
   const items = page.map((t) => {
     const latest = latestMap.get(t.id);
     const lastRead = readMap.get(t.id);
-    const unread = latest?.createdAt ? (!lastRead || latest.createdAt > lastRead) : false;
+    const unread = latest?.createdAt
+      ? !lastRead || latest.createdAt > lastRead
+      : false;
     return { ...t, lastMessagePreview: latest?.content ?? null, unread };
   });
   return Response.json({ items, nextCursor });
@@ -130,7 +167,8 @@ export async function GET(req: NextRequest) {
 const CreateBody = z.object({ title: z.string().optional() });
 export async function POST(req: NextRequest) {
   const body = CreateBody.safeParse(await req.json());
-  if (!body.success) return Response.json({ error: body.error.message }, { status: 400 });
+  if (!body.success)
+    return Response.json({ error: body.error.message }, { status: 400 });
   const t = await createThread({ title: body.data.title });
   return Response.json(
     ThreadSchema.parse(
@@ -146,14 +184,17 @@ export async function POST(req: NextRequest) {
 }
 
 function makeCursor(row: any) {
-  return Buffer.from(JSON.stringify({ id: row.id, createdAt: row.createdAt })).toString("base64");
+  return Buffer.from(
+    JSON.stringify({ id: row.id, createdAt: row.createdAt }),
+  ).toString("base64");
 }
 
 function parseCursor(c: string | null) {
   if (!c) return null as null | { id: string; createdAt: string };
   try {
     const obj = JSON.parse(Buffer.from(c, "base64").toString("utf8"));
-    if (obj && typeof obj.id === "string" && typeof obj.createdAt === "string") return obj;
+    if (obj && typeof obj.id === "string" && typeof obj.createdAt === "string")
+      return obj;
     return null;
   } catch {
     return null;
@@ -164,7 +205,8 @@ const PatchQuery = z.object({ id: z.string() });
 export async function PATCH(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = PatchQuery.safeParse({ id: searchParams.get("id") });
-  if (!q.success) return Response.json({ error: q.error.message }, { status: 400 });
+  if (!q.success)
+    return Response.json({ error: q.error.message }, { status: 400 });
   const patch = (await req.json()) as any;
   await patchThread(q.data.id, patch);
   return Response.json({ ok: true });

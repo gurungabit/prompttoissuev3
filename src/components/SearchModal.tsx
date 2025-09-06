@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { Edit, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Search, X, Edit } from "lucide-react";
+import { useState } from "react";
 
 export type SearchModalProps = {
   isOpen: boolean;
@@ -16,15 +16,22 @@ export type SearchModalProps = {
   onNewChat: () => void;
 };
 
-export function SearchModal({ isOpen, onClose, threads, onSelectThread, onNewChat }: SearchModalProps) {
+export function SearchModal({
+  isOpen,
+  onClose,
+  threads,
+  onSelectThread,
+  onNewChat,
+}: SearchModalProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
 
   if (!isOpen) return null;
 
-  const filteredThreads = threads.filter((thread) =>
-    thread.title.toLowerCase().includes(query.toLowerCase()) ||
-    thread.preview.toLowerCase().includes(query.toLowerCase())
+  const filteredThreads = threads.filter(
+    (thread) =>
+      thread.title.toLowerCase().includes(query.toLowerCase()) ||
+      thread.preview.toLowerCase().includes(query.toLowerCase()),
   );
 
   const handleSelect = (threadId: string) => {
@@ -36,7 +43,7 @@ export function SearchModal({ isOpen, onClose, threads, onSelectThread, onNewCha
 
   const handleNewChat = () => {
     onNewChat();
-    router.push('/');
+    router.push("/");
     onClose();
     setQuery("");
   };
@@ -44,8 +51,10 @@ export function SearchModal({ isOpen, onClose, threads, onSelectThread, onNewCha
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
     const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const diffDays = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays}d ago`;
@@ -55,11 +64,11 @@ export function SearchModal({ isOpen, onClose, threads, onSelectThread, onNewCha
   return (
     <>
       {/* Modal */}
-      <div 
+      <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4 cursor-pointer"
         onClick={onClose}
       >
-        <div 
+        <div
           className="bg-[color:var(--color-surface)] rounded-lg shadow-lg w-full max-w-2xl max-h-[70vh] flex flex-col cursor-default"
           onClick={(e) => e.stopPropagation()}
         >
@@ -98,11 +107,18 @@ export function SearchModal({ isOpen, onClose, threads, onSelectThread, onNewCha
               className="w-full flex items-center gap-3 p-3 hover:bg-[color:var(--color-card)] transition-colors text-left cursor-pointer"
             >
               <div className="w-8 h-8 rounded-lg bg-[color:var(--color-primary)] flex items-center justify-center">
-                <Edit size={16} className="text-[color:var(--color-primary-contrast)]" />
+                <Edit
+                  size={16}
+                  className="text-[color:var(--color-primary-contrast)]"
+                />
               </div>
               <div>
-                <div className="font-medium text-[color:var(--color-text)]">New chat</div>
-                <div className="text-sm text-[color:var(--color-muted)]">Start a fresh conversation</div>
+                <div className="font-medium text-[color:var(--color-text)]">
+                  New chat
+                </div>
+                <div className="text-sm text-[color:var(--color-muted)]">
+                  Start a fresh conversation
+                </div>
               </div>
             </button>
 

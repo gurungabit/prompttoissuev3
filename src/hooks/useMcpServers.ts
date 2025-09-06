@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 import { McpConfig, type McpServerConfig } from "../../mcp/config";
 
 export function useMcpServers(initial?: unknown) {
-  const [config, setConfig] = useState(() => McpConfig.parse(initial ?? { featureEnabled: false, servers: [] }));
+  const [config, setConfig] = useState(() =>
+    McpConfig.parse(initial ?? { featureEnabled: false, servers: [] }),
+  );
 
   function addServer(s: McpServerConfig) {
     setConfig((c) => ({ ...c, servers: [...c.servers, s] }));
@@ -17,4 +19,3 @@ export function useMcpServers(initial?: unknown) {
 
   return { config, addServer, removeServer, toggleFeature };
 }
-
