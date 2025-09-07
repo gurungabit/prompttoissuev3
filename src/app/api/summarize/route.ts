@@ -7,7 +7,7 @@ import {
   PROVIDERS,
   parseSpecifier,
 } from "../../../lib/llm-config";
-import { summarizeThread } from "../../../lib/summarize";
+import { summarizeThread } from "../../../lib/server/summarize";
 
 const Body = z.object({ threadId: z.string() });
 

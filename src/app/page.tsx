@@ -63,10 +63,10 @@ export default function Home() {
         isStreaming={false}
         mode={mode}
         onChangeMode={setMode}
-        onLoadMoreTop={() => {}}
+        onLoadMoreTop={async () => {}}
         hasMore={false}
         isLoadingMore={false}
-        onTogglePin={() => {}}
+        onTogglePin={async () => {}}
       />
     </div>
   );

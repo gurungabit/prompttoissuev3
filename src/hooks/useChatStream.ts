@@ -1,5 +1,6 @@
 "use client";
 import type { Mode } from "../components/ModeToggle";
+import type { McpSettings } from "../lib/client/mcp-types";
 
 type ChatMessageInput = {
   role: "user" | "assistant" | "system";
@@ -11,6 +12,7 @@ export type StreamChatOptions = {
   messages: ChatMessageInput[];
   model: string;
   mode: Mode;
+  mcpSettings?: McpSettings;
   onDelta: (delta: string) => void;
   onDone?: (finalText: string) => void;
   onError?: (err: Error) => void;
@@ -28,6 +30,7 @@ export function useChatStream() {
           messages: opts.messages,
           model: opts.model,
           mode: opts.mode,
+          mcpSettings: opts.mcpSettings,
         }),
       });
       if (!res.ok) {
@@ -68,4 +71,3 @@ export function useChatStream() {
 
   return { streamChat };
 }
-

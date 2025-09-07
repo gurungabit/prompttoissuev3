@@ -3,55 +3,70 @@ import {
   type experimental_MCPClient as MCPClient,
   type ToolSet,
 } from "ai";
+import {
+  getServerMcpConnections,
+  type ServerMcpConnection,
+} from "./server-config";
 import { Experimental_StdioMCPTransport as StdioMCPTransport } from "ai/mcp-stdio";
-import { getGitLabMcpConfig } from "./config";
 
-let gitlabClientPromise: Promise<MCPClient> | null = null;
+// Global MCP client registry
+const mcpClients = new Map<string, Promise<MCPClient>>();
 
-async function ensureGitLabClient() {
-  if (gitlabClientPromise) return gitlabClientPromise;
-  const cfg = getGitLabMcpConfig();
-  if (!cfg.enabled)
-    throw new Error("GitLab MCP is disabled (MCP_GITLAB_ENABLED not set)");
+// Client-side MCP enable/disable state
+let clientMcpEnabled: boolean = true;
 
-  // Basic debug logging to verify MCP server startup
+export function setClientMcpEnabled(enabled: boolean): void {
+  clientMcpEnabled = enabled;
+  // Clear existing clients to force reconnection with new settings
+  mcpClients.clear();
+}
+
+async function createMcpClient(
+  config: ServerMcpConnection
+): Promise<MCPClient> {
+  if (!config.enabled) {
+    throw new Error(`MCP connection "${config.name}" is disabled`);
+  }
+
+  // STDIO transport only works server-side
+  if (typeof window !== "undefined") {
+    throw new Error("STDIO MCP connections are not supported in the browser");
+  }
+
   // eslint-disable-next-line no-console
-  console.info("[MCP][GitLab] Starting STDIO server", {
-    command: cfg.command,
-    args: cfg.args,
-    cwd: cfg.cwd ?? process.cwd(),
-    host: process.env.GITLAB_HOST || "https://gitlab.com",
+  console.info(`[MCP][${config.name}] Starting STDIO server`, {
+    command: config.command,
+    args: config.args,
+    cwd: config.cwd ?? process.cwd(),
   });
 
   const transport = new StdioMCPTransport({
-    command: cfg.command,
-    args: cfg.args,
-    cwd: cfg.cwd,
+    command: config.command,
+    args: config.args,
+    cwd: config.cwd,
     env: {
-      ...process.env,
-      // Ensure server picks these up
-      GITLAB_HOST: process.env.GITLAB_HOST || "https://gitlab.com",
-      GITLAB_TOKEN: process.env.GITLAB_TOKEN || "",
+      // Only pass the specific env vars that this MCP connection needs
+      ...(config.env || {}),
     },
     // inherit stderr to make debugging easier locally
     stderr: "inherit",
   });
 
-  gitlabClientPromise = createMCPClient({
+  const client = createMCPClient({
     transport,
-    name: "prompttoissuev3-mcp-client",
+    name: `prompttoissuev3-mcp-client-${config.id}`,
     onUncaughtError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err);
       // eslint-disable-next-line no-console
-      console.error("[MCP][GitLab] Uncaught client error:", msg);
+      console.error(`[MCP][${config.name}] Uncaught client error:`, msg);
     },
   });
 
   // Clean up on process exit
-  const client = await gitlabClientPromise;
+  const resolvedClient = await client;
   const close = async () => {
     try {
-      await client.close();
+      await resolvedClient.close();
       // eslint-disable-next-line no-empty
     } catch {}
   };
@@ -65,18 +80,39 @@ async function ensureGitLabClient() {
     process.exit(0);
   });
 
-  return gitlabClientPromise;
+  return client;
 }
 
-export async function getGitLabMcpTools(): Promise<ToolSet | null> {
+async function ensureMcpClient(connectionId: string): Promise<MCPClient> {
+  if (mcpClients.has(connectionId)) {
+    return mcpClients.get(connectionId)!;
+  }
+
+  if (!clientMcpEnabled) {
+    throw new Error("MCP is globally disabled");
+  }
+
+  const serverConnections = getServerMcpConnections();
+  const config = serverConnections.find((c) => c.id === connectionId);
+  if (!config) {
+    throw new Error(`MCP connection not found: ${connectionId}`);
+  }
+
+  const clientPromise = createMcpClient(config);
+  mcpClients.set(connectionId, clientPromise);
+  return clientPromise;
+}
+
+export async function getMcpTools(
+  connectionId: string
+): Promise<ToolSet | null> {
   try {
-    const client = await ensureGitLabClient();
-    // Let the client introspect tool schemas automatically
+    const client = await ensureMcpClient(connectionId);
     const tools = await client.tools();
     try {
       const names = Object.keys(tools ?? {});
       // eslint-disable-next-line no-console
-      console.info("[MCP][GitLab] Tools available:", names);
+      console.info(`[MCP][${connectionId}] Tools available:`, names);
     } catch {
       // ignore logging failures
     }
@@ -84,17 +120,40 @@ export async function getGitLabMcpTools(): Promise<ToolSet | null> {
   } catch {
     // eslint-disable-next-line no-console
     console.warn(
-      "[MCP][GitLab] MCP tools not available — proceeding without tools",
+      `[MCP][${connectionId}] MCP tools not available — proceeding without tools`
     );
     return null;
   }
 }
 
-export async function getGitLabMcpToolCatalog(): Promise<
-  Array<{ name: string; parameters: string[]; schema?: unknown }>
-> {
+export async function getAllMcpTools(): Promise<ToolSet> {
+  if (!clientMcpEnabled) return {};
+
+  const serverConnections = getServerMcpConnections();
+  const allTools: ToolSet = {};
+
+  for (const connection of serverConnections) {
+    if (!connection.enabled) continue;
+
+    try {
+      const tools = await getMcpTools(connection.id);
+      if (tools) {
+        Object.assign(allTools, tools);
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn(`Failed to load tools from ${connection.name}:`, error);
+    }
+  }
+
+  return allTools;
+}
+
+export async function getMcpToolCatalog(
+  connectionId: string
+): Promise<Array<{ name: string; parameters: string[]; schema?: unknown }>> {
   try {
-    const client = await ensureGitLabClient();
+    const client = await ensureMcpClient(connectionId);
     const anyClient = client as unknown as {
       listTools?: () => Promise<{
         tools: Array<{ name: string; inputSchema?: unknown }>;
@@ -122,4 +181,10 @@ export async function getGitLabMcpToolCatalog(): Promise<
   } catch {
     return [];
   }
+}
+
+export async function getGitLabMcpToolCatalog(): Promise<
+  Array<{ name: string; parameters: string[]; schema?: unknown }>
+> {
+  return getMcpToolCatalog("gitlab");
 }

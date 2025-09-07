@@ -7,7 +7,6 @@ import {
   PROVIDERS,
   type ProviderId,
   parseSpecifier,
-  toSpecifier,
 } from "../lib/llm-config";
 
 const STORAGE_KEY = "llm.defaultSpec";
@@ -56,7 +55,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       provider,
       model,
     }),
-    [spec, provider, model]
+    [spec, provider, model],
   );
 
   return (

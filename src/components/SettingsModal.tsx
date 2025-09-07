@@ -1,6 +1,8 @@
 "use client";
 import { Cog, X } from "lucide-react";
 import { useState } from "react";
+import type { McpSettings } from "../lib/client/mcp-types";
+import { getMcpSettings, updateMcpSettings } from "../lib/client/mcp-client";
 import { Button } from "./Button";
 import { Card } from "./Card";
 
@@ -21,7 +23,12 @@ export function SettingsButton() {
 }
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
-  const handleSave = () => onClose();
+  const [settings, setSettings] = useState<McpSettings>(() => getMcpSettings());
+
+  const handleSave = () => {
+    updateMcpSettings(settings);
+    onClose();
+  };
 
   return (
     <>
@@ -46,7 +53,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   Settings
                 </div>
                 <div className="text-xs text-[color:var(--color-muted)]">
-                  Configure AI providers and models
+                  Configure MCP connections and integrations
                 </div>
               </div>
             </div>
@@ -59,11 +66,49 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
 
-          {/* Tabs removed by request */}
+          {/* MCP Settings */}
+          <div className="p-6 space-y-6">
+            {/* Global MCP Toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-[color:var(--color-text)]">
+                  Enable MCP
+                </div>
+                <div className="text-xs text-[color:var(--color-muted)]">
+                  Model Context Protocol integrations for enhanced AI
+                  capabilities. Server-side MCP connections are configured via
+                  environment variables.
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={settings.enabled}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      enabled: e.target.checked,
+                    }))
+                  }
+                />
+                <div className="w-11 h-6 bg-[color:var(--color-surface)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[color:var(--color-primary)]"></div>
+              </label>
+            </div>
 
-          {/* Content intentionally left empty for future settings */}
-          <div className="p-6 text-sm text-[color:var(--color-muted)]">
-            No settings yet.
+            {/* Information */}
+            {settings.enabled && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm font-medium text-blue-800 mb-1">
+                  MCP Configuration
+                </div>
+                <div className="text-xs text-blue-700">
+                  MCP connections are configured server-side via environment
+                  variables. Currently supported: GitLab MCP (set
+                  MCP_GITLAB_ENABLED=true, GITLAB_TOKEN, etc.)
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer */}

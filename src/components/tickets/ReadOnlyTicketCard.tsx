@@ -80,4 +80,3 @@ export function ReadOnlyTicketCard({ ticket }: { ticket: Ticket }) {
 }
 
 export default ReadOnlyTicketCard;
-

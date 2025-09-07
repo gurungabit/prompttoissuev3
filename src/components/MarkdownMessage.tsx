@@ -85,7 +85,10 @@ type MarkdownMessageProps = {
 
 // Toolbar + wrapper around a code block (client-side Shiki highlight)
 function CodeBlockWrapper({ children }: { children: React.ReactNode }) {
-  const child = children as React.ReactElement<{ className?: string; children?: React.ReactNode }>;
+  const child = children as React.ReactElement<{
+    className?: string;
+    children?: React.ReactNode;
+  }>;
   const raw =
     typeof child?.props?.children === "string"
       ? (child.props.children as string)

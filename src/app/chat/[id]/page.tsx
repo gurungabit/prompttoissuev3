@@ -13,8 +13,9 @@ import type { Mode } from "../../../components/ModeToggle";
 import { useToast } from "../../../components/Toast";
 import { useSettings } from "../../../context/Settings";
 import { useThreadSelection } from "../../../context/ThreadSelection";
-import { useMessages } from "../../../hooks/useMessages";
 import { useChatStream } from "../../../hooks/useChatStream";
+import { getMcpSettings } from "../../../lib/client/mcp-client";
+import { useMessages } from "../../../hooks/useMessages";
 import { useThreads } from "../../../hooks/useThreads";
 import { DEFAULT_SPEC } from "../../../lib/llm-config";
 
@@ -46,7 +47,7 @@ export default function ChatPage() {
   const { show } = useToast();
   // Use a ref to track the actual current mode (survives hot reloads)
   const currentModeRef = useRef<Mode>("assistant");
-  
+
   // Persist mode selection in localStorage (hydration-safe)
   const [mode, setMode] = useState<Mode>("assistant");
   const [isHydrated, setIsHydrated] = useState(false);
@@ -95,7 +96,6 @@ export default function ChatPage() {
     async (text: string) => {
       const useThreadId = chatId;
       if (!useThreadId) return;
-      
 
       // Optimistically show the user's message immediately
       setOptimisticUser({
@@ -192,6 +192,7 @@ export default function ChatPage() {
         messages: [{ role: "user", content: text }],
         model: selectedModel,
         mode: currentModeRef.current,
+        mcpSettings: getMcpSettings(),
         onDelta: (delta) => {
           if (!delta) return;
           const tw = typewriterRef.current;
@@ -211,7 +212,16 @@ export default function ChatPage() {
         },
       });
     },
-    [chatId, threads, refresh, refreshThreads, show, globalSpec]
+    [
+      chatId,
+      threads,
+      refresh,
+      refreshThreads,
+      show,
+      globalSpec,
+      sendUserMessage,
+      streamChat,
+    ]
   );
 
   // Cleanup on unmount: cancel any pending rAF to avoid leaks

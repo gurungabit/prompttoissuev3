@@ -26,14 +26,14 @@ export function buildChatContext({
   const system: Message[] = thread.messages.filter((m) => m.role === "system");
   const pinned: Message[] = thread.messages.filter((m) => m.pinned === true);
   const nonPinned = thread.messages.filter(
-    (m) => !m.pinned && m.role !== "system"
+    (m) => !m.pinned && m.role !== "system",
   );
 
   const summary = thread.summaryText ?? undefined;
   const baseTokens = estimateTokens(summary ?? "");
   const pinnedTokens = pinned.reduce(
     (acc, m) => acc + estimateTokens(m.content),
-    0
+    0,
   );
 
   // Always include system + pinned, then fill the remaining budget with recent tail

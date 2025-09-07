@@ -1,10 +1,10 @@
-import { env } from "./env";
+import { env } from "../env";
 import {
   DEFAULT_SPEC,
   PROVIDERS,
-  parseSpecifier,
   type ProviderId,
-} from "./llm-config";
+  parseSpecifier,
+} from "../llm-config";
 
 export type ValidatedSpec = {
   spec: string;
@@ -12,7 +12,9 @@ export type ValidatedSpec = {
   model: string;
 };
 
-export function validateSpec(specInput: string | undefined):
+export function validateSpec(
+  specInput: string | undefined
+):
   | { ok: true; value: ValidatedSpec }
   | { ok: false; error: string; status: number } {
   const spec = specInput ?? DEFAULT_SPEC;
@@ -44,4 +46,3 @@ export function validateSpec(specInput: string | undefined):
 
   return { ok: true, value: { spec, provider, model } };
 }
-

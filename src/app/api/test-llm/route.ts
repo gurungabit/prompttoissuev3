@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success)
     return Response.json(
       { ok: false, error: parsed.error.message },
-      { status: 400 }
+      { status: 400 },
     );
 
   const { provider, model } = parseSpecifier(parsed.data.spec);
@@ -21,20 +21,20 @@ export async function POST(req: NextRequest) {
   if (!provCfg || !(provCfg.models as readonly string[]).includes(model)) {
     return Response.json(
       { ok: false, error: `Unsupported spec '${parsed.data.spec}'` },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (provider === "google" && !env.GOOGLE_API_KEY) {
     return Response.json(
       { ok: false, error: "Missing GOOGLE_API_KEY" },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (provider === "openai" && !env.OPENAI_API_KEY) {
     return Response.json(
       { ok: false, error: "Missing OPENAI_API_KEY" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
         ? createGoogleGenerativeAI({ apiKey: env.GOOGLE_API_KEY })
         : google
       : env.OPENAI_API_KEY
-      ? createOpenAI({ apiKey: env.OPENAI_API_KEY })
-      : openai;
+        ? createOpenAI({ apiKey: env.OPENAI_API_KEY })
+        : openai;
 
   const ctrl = new AbortController();
   const timeout = setTimeout(() => ctrl.abort(), 7000);
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         : "Unknown error";
     return Response.json(
       { ok: false, provider, model, error: msg },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -287,7 +287,6 @@ function ThreadItem({
               onBlur={handleRenameSubmit}
               onClick={(e) => e.stopPropagation()}
               className="font-medium text-sm flex-1 pr-2 bg-[color:var(--color-surface)] border border-[color:var(--color-primary)] rounded px-2 py-1 text-[color:var(--color-text)] focus:outline-none"
-              autoFocus
             />
           ) : (
             <h3 className="font-medium text-sm truncate flex-1 pr-2">

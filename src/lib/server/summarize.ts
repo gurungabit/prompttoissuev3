@@ -2,8 +2,8 @@ import { createGoogleGenerativeAI, google } from "@ai-sdk/google";
 import { createOpenAI, openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { env } from "./env";
-import { DEFAULT_SPEC, parseSpecifier } from "./llm-config";
+import { env } from "../env";
+import { DEFAULT_SPEC, parseSpecifier } from "../llm-config";
 
 export const SummarySchema = z.object({
   narrative: z.string(),

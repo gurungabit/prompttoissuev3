@@ -1,11 +1,11 @@
 "use client";
-import { Plus, Save, X, Pencil, Undo2 } from "lucide-react";
+import { Pencil, Plus, Save, Undo2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { TicketsPayload } from "../lib/tickets";
-import { ConfirmModal } from "./ConfirmModal";
-import { ReadOnlyTicketCard } from "./tickets/ReadOnlyTicketCard";
-import { EditableTicketCard } from "./tickets/EditableTicketCard";
 import { Button } from "./Button";
+import { ConfirmModal } from "./ConfirmModal";
+import { EditableTicketCard } from "./tickets/EditableTicketCard";
+import { ReadOnlyTicketCard } from "./tickets/ReadOnlyTicketCard";
 
 export function TicketsDrawer({
   initialTickets,
@@ -16,7 +16,7 @@ export function TicketsDrawer({
   onSave?: (tickets: TicketsPayload) => Promise<void> | void;
   onClose: () => void;
 }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, _setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState<TicketsPayload | null>(
     (initialTickets ?? null) as TicketsPayload | null,
@@ -31,8 +31,7 @@ export function TicketsDrawer({
 
   const addTicket = () => {
     setDraft((prev) => {
-      const base: TicketsPayload =
-        prev ??
+      const base: TicketsPayload = prev ??
         data ?? {
           type: "tickets",
           tickets: [],
@@ -93,18 +92,22 @@ export function TicketsDrawer({
     setIsEditing(true);
     setDraft((prev) => {
       if (prev) return prev; // retain if already staged
-      const base = data ?? {
-        type: "tickets",
-        tickets: [],
-        reasoning: "",
-        needsClarification: false,
-        clarificationQuestions: [],
-      } satisfies TicketsPayload;
+      const base =
+        data ??
+        ({
+          type: "tickets",
+          tickets: [],
+          reasoning: "",
+          needsClarification: false,
+          clarificationQuestions: [],
+        } satisfies TicketsPayload);
       // Prefer structuredClone if available at runtime; fallback to JSON clone
       try {
-        const maybeClone: unknown = (globalThis as unknown as {
-          structuredClone?: (x: unknown) => unknown;
-        }).structuredClone;
+        const maybeClone: unknown = (
+          globalThis as unknown as {
+            structuredClone?: (x: unknown) => unknown;
+          }
+        ).structuredClone;
         if (typeof maybeClone === "function") {
           return maybeClone(base) as TicketsPayload;
         }
@@ -153,7 +156,9 @@ export function TicketsDrawer({
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {loading ? (
-            <div className="text-[color:var(--color-muted)] text-sm">Loading…</div>
+            <div className="text-[color:var(--color-muted)] text-sm">
+              Loading…
+            </div>
           ) : !ticketsToRender ? (
             <div className="text-[color:var(--color-muted)] text-sm">
               No tickets.

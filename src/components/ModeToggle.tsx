@@ -1,5 +1,4 @@
 "use client";
-import React from "react";
 
 export type Mode = "assistant" | "ticket";
 
@@ -20,7 +19,9 @@ export function ModeToggle({
 
   return (
     <div className="flex flex-col items-end select-none">
-      <div className={`text-[11px] font-medium mb-1 leading-none ${labelClass}`}>
+      <div
+        className={`text-[11px] font-medium mb-1 leading-none ${labelClass}`}
+      >
         {isTickets ? "Tickets" : "Assistant"}
       </div>
       <button

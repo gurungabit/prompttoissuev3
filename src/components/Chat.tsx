@@ -1,11 +1,11 @@
 "use client";
 import { ChevronsDown, Copy, RotateCcw, Send, Ticket } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { TicketsPayload } from "../lib/tickets";
 import MarkdownMessage from "./MarkdownMessage";
 import ModelPicker from "./ModelPicker";
 import ModeToggle, { type Mode } from "./ModeToggle";
 import TicketsDrawer from "./TicketsDrawer";
-import type { TicketsPayload } from "../lib/tickets";
 
 export type ChatMessage = {
   id: string;
@@ -21,10 +21,13 @@ export type ChatProps = {
   onSend: (text: string) => void;
   onRegenerate?: () => void;
   isStreaming?: boolean;
-  onLoadMoreTop?: () => void | Promise<unknown>;
+  onLoadMoreTop?: () => undefined | Promise<unknown>;
   hasMore?: boolean;
   isLoadingMore?: boolean;
-  onTogglePin?: (id: string, nextPinned: boolean) => void | Promise<unknown>;
+  onTogglePin?: (
+    id: string,
+    nextPinned: boolean,
+  ) => undefined | Promise<unknown>;
   mode?: Mode;
   onChangeMode?: (m: Mode) => void;
   onUpdateTickets?: (
@@ -91,7 +94,7 @@ export function Chat({
     if (!isStreaming) return;
     if (!nearBottom) return;
     requestAnimationFrame(scrollToBottomNow);
-  }, [isStreaming, nearBottom]);
+  }, [isStreaming, nearBottom, scrollToBottomNow]);
 
   // Track whether user is near the bottom of the scroll container
   // Use hysteresis + rAF + passive listener to avoid re-render thrash
@@ -160,7 +163,7 @@ export function Chat({
       const next = prev ? distance <= OUT : distance <= IN;
       return next === prev ? prev : next;
     });
-  }, [messages, isStreaming]);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

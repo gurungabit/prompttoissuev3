@@ -16,9 +16,9 @@ export type UseMessagesOptions = {
 
 export function useMessages(
   threadId: string | null,
-  opts: UseMessagesOptions = {},
+  _opts: UseMessagesOptions = {},
 ) {
-  const getKey = (index: number, prev: any) => {
+  const getKey = (_index: number, prev: any) => {
     if (!threadId) return null;
     if (prev && !prev.nextCursor) return null;
     const qs = new URLSearchParams();

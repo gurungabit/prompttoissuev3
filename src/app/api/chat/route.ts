@@ -10,17 +10,18 @@ import {
   buildContextMessages,
   estimateTokensForText,
 } from "../../../lib/chat-context";
-import { streamAssistant } from "../../../lib/llm";
+import { streamAssistant } from "../../../lib/server/llm";
 import { DEFAULT_SPEC } from "../../../lib/llm-config";
-import { validateSpec } from "../../../lib/llm-validate";
+import { validateSpec } from "../../../lib/server/llm-validate";
 import {
   ASSISTANT_PROMPT,
   MARKDOWN_GUARDRAIL_PROMPT,
   TICKETS_PROMPT,
   TICKETS_RESEARCH_PROMPT,
-} from "../../../lib/prompts";
-import { summarizeThread } from "../../../lib/summarize";
+} from "../../../lib/server/prompts";
+import { summarizeThread } from "../../../lib/server/summarize";
 import { parseTicketsFromText } from "../../../lib/tickets";
+import { McpSettingsSchema } from "../../../lib/client/mcp-types";
 
 const SUMMARIZE_TOKEN_THRESHOLD = 3000;
 const SUMMARIZE_MESSAGE_THRESHOLD = 60;
@@ -37,6 +38,7 @@ const Body = z.object({
     .nonempty(),
   model: z.string().optional().default("gemini-2.0-flash"),
   mode: z.enum(["assistant", "ticket"]).optional().default("assistant"),
+  mcpSettings: McpSettingsSchema.optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -89,16 +91,22 @@ export async function POST(req: NextRequest) {
     ];
 
     // Check if GitLab URL is present to enforce tool usage for research
-    const hasGitLabUrl = messagesForTickets.some(msg => 
-      typeof msg.content === 'string' && /https?:\/\/[^\s]*gitlab\.com\//i.test(msg.content)
+    const hasGitLabUrl = messagesForTickets.some(
+      (msg) =>
+        typeof msg.content === "string" &&
+        /https?:\/\/[^\s]*gitlab\.com\//i.test(msg.content)
     );
 
     // eslint-disable-next-line no-console
-    console.log('[TICKET] GitLab URL detection:', { hasGitLabUrl, messagesCount: messagesForTickets.length });
+    console.log("[TICKET] GitLab URL detection:", {
+      hasGitLabUrl,
+      messagesCount: messagesForTickets.length,
+    });
 
     const result = await streamAssistant(messagesForTickets, spec, {
       allowPrefetch: false,
       enforceFirstToolCall: hasGitLabUrl,
+      mcpSettings: parsed.data.mcpSettings,
     });
     const reader = result.textStream.getReader();
     let acc = "";
@@ -140,7 +148,9 @@ export async function POST(req: NextRequest) {
       { role: "system" as const, content: ASSISTANT_PROMPT },
       ...finalPrompt,
     ];
-    const result = await streamAssistant(assistantMessages, spec);
+    const result = await streamAssistant(assistantMessages, spec, {
+      mcpSettings: parsed.data.mcpSettings,
+    });
     const textStream = result.textStream; // stream of string tokens
     const encoder = new TextEncoder();
     let acc = "";

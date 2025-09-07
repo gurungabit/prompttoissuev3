@@ -1,9 +1,7 @@
 "use client";
 import useSWRInfinite from "swr/infinite";
-import { z } from "zod";
 import {
   PaginatedThreadsWithPreview,
-  type ThreadListItem,
   ThreadListItemSchema,
 } from "../lib/schemas";
 
@@ -26,7 +24,7 @@ export function useThreads(opts: UseThreadsOptions = {}) {
   if (typeof opts.archived === "boolean")
     base.set("archived", String(opts.archived));
   const baseQs = base.toString();
-  const getKey = (index: number, prev: any) => {
+  const getKey = (_index: number, prev: any) => {
     if (prev && !prev.nextCursor) return null;
     const qs = new URLSearchParams(baseQs);
     if (prev?.nextCursor) qs.set("cursor", prev.nextCursor);
@@ -55,7 +53,7 @@ export function useThreads(opts: UseThreadsOptions = {}) {
       archived: boolean;
       pinned: boolean;
       defaultModel: string;
-    }>
+    }>,
   ) {
     const res = await fetch(`/api/threads?id=${encodeURIComponent(id)}`, {
       method: "PATCH",

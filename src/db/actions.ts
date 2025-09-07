@@ -12,7 +12,7 @@ export async function listThreads({
   const db = getDb();
   const where = [] as any[];
   if (typeof archived === "boolean") where.push(eq(threads.archived, archived));
-  if (q && q.trim()) {
+  if (q?.trim()) {
     const needle = `%${q.trim()}%`;
     where.push(
       or(ilike(threads.title, needle), ilike(threads.summaryText, needle)),

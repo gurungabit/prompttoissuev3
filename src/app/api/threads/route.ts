@@ -21,7 +21,7 @@ function serializeThread(row: any) {
     summaryUpdatedAt:
       row.summaryUpdatedAt instanceof Date
         ? row.summaryUpdatedAt.toISOString()
-        : row.summaryUpdatedAt ?? null,
+        : (row.summaryUpdatedAt ?? null),
   };
 }
 
@@ -31,7 +31,10 @@ export async function GET(req: NextRequest) {
   const archivedParam = searchParams.get("archived");
   const archived = archivedParam == null ? undefined : archivedParam === "true";
   const limitParam = Number(searchParams.get("limit") ?? "20");
-  const limit = Math.max(1, Math.min(50, isNaN(limitParam) ? 20 : limitParam));
+  const limit = Math.max(
+    1,
+    Math.min(50, Number.isNaN(limitParam) ? 20 : limitParam),
+  );
   const cursorParam = searchParams.get("cursor");
 
   // Fall back to actions for non-paginated path
@@ -76,10 +79,10 @@ export async function GET(req: NextRequest) {
   const db = getDb();
   const where = [] as any[];
   if (typeof archived === "boolean") where.push(eq(threads.archived, archived));
-  if (q && q.trim()) {
+  if (q?.trim()) {
     const needle = `%${q.trim()}%`;
     where.push(
-      or(ilike(threads.title, needle), ilike(threads.summaryText, needle))
+      or(ilike(threads.title, needle), ilike(threads.summaryText, needle)),
     );
   }
   if (cursor) {
@@ -87,8 +90,8 @@ export async function GET(req: NextRequest) {
     where.push(
       or(
         lt(threads.createdAt, createdAt),
-        and(eq(threads.createdAt, createdAt), lt(threads.id, cursor.id))
-      )
+        and(eq(threads.createdAt, createdAt), lt(threads.id, cursor.id)),
+      ),
     );
   }
   const rows = await db
@@ -126,7 +129,7 @@ export async function GET(req: NextRequest) {
     }
   }
   // Fetch last read per thread for the current user
-  const USER_ID = "00000000-0000-0000-0000-000000000000";
+  const _USER_ID = "00000000-0000-0000-0000-000000000000";
   const reads = await getDb()
     .select({
       threadId: threadReads.threadId,
@@ -135,7 +138,7 @@ export async function GET(req: NextRequest) {
     .from(threadReads)
     .where(inArray(threadReads.threadId, ids));
   const readMap = new Map<string, Date>(
-    reads.map((r) => [r.threadId, r.lastReadAt as Date])
+    reads.map((r) => [r.threadId, r.lastReadAt as Date]),
   );
 
   // Determine unread: latest message newer than lastReadAt
@@ -177,15 +180,15 @@ export async function POST(req: NextRequest) {
         summaryText: t.summaryText ?? null,
         summaryModel: t.summaryModel ?? null,
         summaryUpdatedAt: t.summaryUpdatedAt ?? null,
-      })
+      }),
     ),
-    { status: 201 }
+    { status: 201 },
   );
 }
 
 function makeCursor(row: any) {
   return Buffer.from(
-    JSON.stringify({ id: row.id, createdAt: row.createdAt })
+    JSON.stringify({ id: row.id, createdAt: row.createdAt }),
   ).toString("base64");
 }
 

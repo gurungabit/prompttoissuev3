@@ -35,7 +35,7 @@ export const LlmConfigSchema = z.object({
   defaultSpec: z.string(),
   providers: z.record(
     z.string(),
-    z.object({ label: z.string(), models: z.array(z.string()) })
+    z.object({ label: z.string(), models: z.array(z.string()) }),
   ),
 });
 

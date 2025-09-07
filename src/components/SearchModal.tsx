@@ -81,7 +81,6 @@ export function SearchModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="flex-1 bg-transparent text-[color:var(--color-text)] placeholder-[color:var(--color-muted)] focus:outline-none"
-              autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !query.trim()) {
                   handleNewChat();

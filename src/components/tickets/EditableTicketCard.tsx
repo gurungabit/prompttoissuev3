@@ -43,7 +43,10 @@ export function EditableTicketCard({
           className="h-9 rounded border border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text)] px-2 cursor-default"
           value={ticket.priority}
           onChange={(e) =>
-            onChange({ ...ticket, priority: e.target.value as Ticket["priority"] })
+            onChange({
+              ...ticket,
+              priority: e.target.value as Ticket["priority"],
+            })
           }
         >
           {(["low", "medium", "high", "critical"] as const).map((p) => (
@@ -110,4 +113,3 @@ export function EditableTicketCard({
 }
 
 export default EditableTicketCard;
-

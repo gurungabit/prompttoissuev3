@@ -93,7 +93,6 @@ export function ModelPicker() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search models..."
               className="flex-1 bg-transparent text-sm text-[color:var(--color-text)] placeholder-[color:var(--color-muted)] focus:outline-none"
-              autoFocus
             />
           </div>
           <div className="max-h-[50vh] overflow-y-auto py-1">

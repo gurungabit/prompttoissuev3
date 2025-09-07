@@ -1,9 +1,14 @@
 import { createGoogleGenerativeAI, google } from "@ai-sdk/google";
 import { createOpenAI, openai } from "@ai-sdk/openai";
 import { type ModelMessage, stepCountIs, streamText } from "ai";
-import { getGitLabMcpToolCatalog, getGitLabMcpTools } from "../mcp/adapter";
-import { env } from "./env";
-import { DEFAULT_SPEC, parseSpecifier } from "./llm-config";
+import {
+  getAllMcpTools,
+  getGitLabMcpToolCatalog,
+  setClientMcpEnabled,
+} from "../../mcp/adapter";
+import { env } from "../env";
+import { DEFAULT_SPEC, parseSpecifier } from "../llm-config";
+import type { McpSettings } from "../client/mcp-types";
 
 export const DEFAULT_MODEL = DEFAULT_SPEC;
 
@@ -19,23 +24,36 @@ const factories = {
 export async function streamAssistant(
   messages: ModelMessage[],
   modelSpec: string = DEFAULT_SPEC,
-  options?: { allowPrefetch?: boolean; enforceFirstToolCall?: boolean }
+  options?: {
+    allowPrefetch?: boolean;
+    enforceFirstToolCall?: boolean;
+    mcpSettings?: McpSettings;
+  }
 ) {
   const { provider: provName, model } = parseSpecifier(modelSpec);
   const prov = factories[provName]();
-  // Try to load MCP tools (GitLab) if enabled; fall back silently if not.
-  const mcpTools = await getGitLabMcpTools().catch(() => null);
-  if (mcpTools) {
-    try {
-      const names = Object.keys(mcpTools);
-      // eslint-disable-next-line no-console
-      console.info("[MCP] Attaching tools to streamText:", names);
-    } catch {
-      // ignore
-    }
-  } else {
+
+  // Update MCP enabled state if provided
+  if (options?.mcpSettings) {
+    setClientMcpEnabled(options.mcpSettings.enabled);
+  }
+
+  // Try to load all MCP tools if enabled; fall back silently if not.
+  const mcpTools = await getAllMcpTools().catch(() => ({}));
+  const availableToolNames = Object.keys(mcpTools);
+  if (availableToolNames.length > 0) {
     // eslint-disable-next-line no-console
-    console.info("[MCP] No tools attached (disabled or failed to load)");
+    console.info("[MCP] Attaching tools to streamText:", availableToolNames);
+  } else {
+    // Check if MCP is disabled via settings
+    const currentSettings = options?.mcpSettings;
+    const isDisabled = currentSettings && !currentSettings.enabled;
+    // eslint-disable-next-line no-console
+    console.info(
+      isDisabled
+        ? "[MCP] No tools attached (MCP disabled via settings)"
+        : "[MCP] No tools attached (disabled or failed to load)"
+    );
   }
   // Heuristic: if the latest user message references GitLab, parse project/ref
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
@@ -170,7 +188,7 @@ Instead, write a concise natural-language summary using the data. Prefer short s
     (options?.allowPrefetch ?? true) &&
     projectIdHint &&
     mcpTools &&
-    toolNames.includes("gather_repo_overview")
+    availableToolNames.includes("gather_repo_overview")
   ) {
     try {
       const res = await (
@@ -199,7 +217,7 @@ Instead, write a concise natural-language summary using the data. Prefer short s
     (options?.allowPrefetch ?? true) &&
     projectIdHint &&
     mcpTools &&
-    toolNames.includes("list_files")
+    availableToolNames.includes("list_files")
   ) {
     // If the URL points to a subdirectory, prefetch a listing to provide concrete context
     const path = (rawText && parseGitLabInfo(rawText).subPath) || undefined;
@@ -261,7 +279,9 @@ Instead, write a concise natural-language summary using the data. Prefer short s
   // eslint-disable-next-line no-console
   console.info(
     "[MCP] strategy:",
-    options?.enforceFirstToolCall ? "forced first tool call" : "auto (no forced first tool)",
+    options?.enforceFirstToolCall
+      ? "forced first tool call"
+      : "auto (no forced first tool)",
     "activeTools:",
     activeTools?.length ?? 0,
     projectIdHint ? `projectIdHint: ${projectIdHint}` : "",
@@ -277,28 +297,29 @@ Instead, write a concise natural-language summary using the data. Prefer short s
     prepareStep: options?.enforceFirstToolCall
       ? ({ stepNumber, steps }) => {
           // Count total tool calls made so far
-          const totalToolCalls = steps.reduce((count, step) => 
-            count + (step.toolCalls?.length ?? 0), 0
+          const totalToolCalls = steps.reduce(
+            (count, step) => count + (step.toolCalls?.length ?? 0),
+            0
           );
-          
+
           // eslint-disable-next-line no-console
-          console.log('[AI] prepareStep called:', { 
-            stepNumber, 
+          console.log("[AI] prepareStep called:", {
+            stepNumber,
             enforceFirstToolCall: options.enforceFirstToolCall,
             totalToolCalls,
-            stepsCount: steps.length
+            stepsCount: steps.length,
           });
-          
+
           // Force tool use on first step
           if (stepNumber === 0) {
             return { toolChoice: "required" as const };
           }
-          
+
           // For early steps, require more tool calls if not enough research done
           if (stepNumber <= 4 && totalToolCalls < 5) {
             return { toolChoice: "required" as const };
           }
-          
+
           return undefined;
         }
       : undefined,
@@ -315,24 +336,36 @@ Instead, write a concise natural-language summary using the data. Prefer short s
         "finish:",
         finishReason
       );
-      
+
       // Debug: log tool call names and result sizes
       if (toolCalls && toolCalls.length > 0) {
         toolCalls.forEach((call, i) => {
           // eslint-disable-next-line no-console
-          console.info(`[AI] Tool call ${i + 1}:`, call.toolName, JSON.stringify(call).slice(0, 200));
+          console.info(
+            `[AI] Tool call ${i + 1}:`,
+            call.toolName,
+            JSON.stringify(call).slice(0, 200)
+          );
         });
       }
-      
+
       if (toolResults && toolResults.length > 0) {
         toolResults.forEach((result, i) => {
           try {
             const resultStr = JSON.stringify(result);
             // eslint-disable-next-line no-console
-            console.info(`[AI] Tool result ${i + 1}:`, `(${resultStr.length} chars)`, resultStr.slice(0, 200) + '...');
-          } catch (e) {
+            console.info(
+              `[AI] Tool result ${i + 1}:`,
+              `(${resultStr.length} chars)`,
+              `${resultStr.slice(0, 200)}...`
+            );
+          } catch (_e) {
             // eslint-disable-next-line no-console
-            console.info(`[AI] Tool result ${i + 1}:`, 'failed to stringify', result);
+            console.info(
+              `[AI] Tool result ${i + 1}:`,
+              "failed to stringify",
+              result
+            );
           }
         });
       }
