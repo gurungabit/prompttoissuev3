@@ -148,22 +148,6 @@ export function buildStreamConfig(options?: StreamOptions) {
       console.error("[AI] streamText error:", msg);
     },
 
-    onChunk: (chunk: unknown) => {
-      // Useful to see tool call chunks moving through
-      try {
-        const type = (chunk as { type?: string }).type;
-        if (
-          type === "tool-call" ||
-          type === "tool-result" ||
-          type === "tool-output" ||
-          type === "tool-error"
-        ) {
-          // eslint-disable-next-line no-console
-          console.info("[AI] Chunk:", type, chunk);
-        }
-      } catch {
-        // ignore
-      }
-    },
+    // onChunk logging removed for performance
   };
 }
