@@ -11,7 +11,16 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { threads, rename, pin, remove, refresh } = useThreads();
+  const {
+    threads,
+    rename,
+    pin,
+    remove,
+    refresh,
+    loadMore,
+    hasMore,
+    isLoadingMore,
+  } = useThreads();
   const { selectedId, setSelectedId } = useThreadSelection();
 
   // Extract thread ID from URL if we're on a chat page
@@ -53,6 +62,9 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           }}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
           onRenameThread={async (id, newTitle) => {
             await rename(id, newTitle);
             await refresh();

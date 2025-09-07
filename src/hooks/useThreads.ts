@@ -92,6 +92,25 @@ export function useThreads(opts: UseThreadsOptions = {}) {
   const nextCursor = pages[pages.length - 1]?.nextCursor ?? null;
   const hasMore = !!nextCursor;
 
+  async function validateThread(id: string) {
+    const res = await fetch(`/api/threads?id=${encodeURIComponent(id)}`);
+    return res.ok;
+  }
+
+  async function deleteAll() {
+    if (threads.length === 0) return;
+
+    // Use bulk delete API for better performance
+    const res = await fetch("/api/threads", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids: threads.map((t) => t.id) }),
+    });
+
+    if (!res.ok) throw new Error("Failed to delete all threads");
+    await setSize(1);
+  }
+
   return {
     threads,
     nextCursor,
@@ -106,14 +125,8 @@ export function useThreads(opts: UseThreadsOptions = {}) {
     pin: (id: string, pinned: boolean) => patch(id, { pinned }),
     remove,
     summarize,
+    validateThread,
+    deleteAll,
     loadMore: () => (hasMore ? setSize(size + 1) : Promise.resolve(size)),
-    markRead: async (id: string) => {
-      await fetch("/api/threads/read", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ threadId: id }),
-      });
-      await setSize(1);
-    },
   };
 }

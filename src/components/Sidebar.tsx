@@ -8,7 +8,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfirmModal } from "./ConfirmModal";
 import { SearchModal } from "./SearchModal";
 
@@ -28,6 +28,9 @@ export type SidebarProps = {
   onCloseMobile?: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  onLoadMore?: () => Promise<unknown>;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
   onRenameThread?: (id: string, newTitle: string) => void;
   onPinThread?: (id: string, pinned: boolean) => void;
   onDeleteThread?: (id: string) => void;
@@ -40,18 +43,40 @@ export function Sidebar({
   onCreate,
   collapsed,
   onToggleCollapse,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
   onRenameThread,
   onPinThread,
   onDeleteThread,
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const filteredThreads = threads.filter(
     (thread) =>
       thread.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       thread.preview.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  // Infinite scroll functionality
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement || !onLoadMore || !hasMore) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
+      const scrolledToBottom = scrollHeight - scrollTop - clientHeight < 100; // 100px threshold
+
+      if (scrolledToBottom && !isLoadingMore) {
+        onLoadMore();
+      }
+    };
+
+    scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+    return () => scrollElement.removeEventListener("scroll", handleScroll);
+  }, [onLoadMore, hasMore, isLoadingMore]);
 
   if (collapsed) {
     return (
@@ -145,7 +170,7 @@ export function Sidebar({
         </div>
 
         {/* Threads List */}
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-20">
           <div className="space-y-2">
             {filteredThreads.length === 0 ? (
               <div className="text-center py-8 text-[color:var(--color-muted)] text-sm">
@@ -175,6 +200,20 @@ export function Sidebar({
                   }
                 />
               ))
+            )}
+
+            {/* Loading indicator */}
+            {isLoadingMore && (
+              <div className="text-center py-4 text-[color:var(--color-muted)] text-sm">
+                Loading more conversations...
+              </div>
+            )}
+
+            {/* No more indicator */}
+            {!hasMore && threads.length > 0 && !isLoadingMore && (
+              <div className="text-center py-4 text-[color:var(--color-muted)] text-xs">
+                All conversations loaded
+              </div>
             )}
           </div>
         </div>

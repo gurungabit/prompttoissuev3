@@ -4,6 +4,8 @@ import { z } from "zod";
 import {
   createThread,
   deleteThread,
+  deleteThreads,
+  getThread,
   listThreads,
   patchThread,
 } from "../../../db/actions";
@@ -38,6 +40,21 @@ function serializeThread(row: ThreadRow) {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+
+  // Handle single thread validation by ID
+  const id = searchParams.get("id");
+  if (id) {
+    try {
+      const thread = await getThread(id);
+      if (!thread) {
+        return Response.json({ error: "Thread not found" }, { status: 404 });
+      }
+      return Response.json(serializeThread(thread));
+    } catch {
+      return Response.json({ error: "Thread not found" }, { status: 404 });
+    }
+  }
+
   const q = searchParams.get("q") ?? undefined;
   const archivedParam = searchParams.get("archived");
   const archived = archivedParam == null ? undefined : archivedParam === "true";
@@ -241,7 +258,36 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
-  if (!id) return Response.json({ error: "id required" }, { status: 400 });
-  await deleteThread(id);
-  return Response.json({ ok: true });
+
+  // Handle single thread deletion via query param (legacy support)
+  if (id) {
+    await deleteThread(id);
+    return Response.json({ ok: true });
+  }
+
+  // Handle bulk deletion via request body
+  try {
+    const body = await req.json();
+    const ids = z.array(z.string()).parse(body.ids);
+
+    if (ids.length === 0) {
+      return Response.json({ error: "No IDs provided" }, { status: 400 });
+    }
+
+    // Delete all threads in one bulk query
+    await deleteThreads(ids);
+
+    return Response.json({
+      ok: true,
+      deleted: ids.length,
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return Response.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    return Response.json(
+      { error: "Failed to delete threads" },
+      { status: 500 },
+    );
+  }
 }

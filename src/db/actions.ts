@@ -74,6 +74,12 @@ export async function deleteThread(id: string) {
   await db.delete(threads).where(eq(threads.id, id));
 }
 
+export async function deleteThreads(ids: string[]) {
+  if (ids.length === 0) return;
+  const db = getDb();
+  await db.delete(threads).where(inArray(threads.id, ids));
+}
+
 export async function listMessages(threadId: string) {
   const db = getDb();
   const rows = await db

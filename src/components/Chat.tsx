@@ -21,9 +21,6 @@ export type ChatProps = {
   onSend: (text: string) => void;
   onRegenerate?: () => void;
   isStreaming?: boolean;
-  onLoadMoreTop?: () => undefined | Promise<unknown>;
-  hasMore?: boolean;
-  isLoadingMore?: boolean;
   onTogglePin?: (
     id: string,
     nextPinned: boolean,
@@ -48,7 +45,6 @@ export function Chat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const [nearBottom, setNearBottom] = useState(true);
   const [hasBelow, setHasBelow] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
@@ -103,15 +99,9 @@ export function Chat({
     const el = scrollRef.current;
     if (!el) return;
     let ticking = false;
-    const IN = 160; // become near when within 160px
-    const OUT = 260; // become not-near when farther than 260px
     const update = () => {
       const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
       setHasBelow(distance > 4);
-      setNearBottom((prev) => {
-        const next = prev ? distance <= OUT : distance <= IN;
-        return next === prev ? prev : next;
-      });
     };
     const onScroll = () => {
       if (ticking) return;
@@ -157,14 +147,8 @@ export function Chat({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const IN = 160;
-    const OUT = 260;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
     setHasBelow(distance > 4);
-    setNearBottom((prev) => {
-      const next = prev ? distance <= OUT : distance <= IN;
-      return next === prev ? prev : next;
-    });
   }, [messages, isStreaming]);
 
   const handleSubmit = (e: React.FormEvent) => {

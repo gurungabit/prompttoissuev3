@@ -25,14 +25,11 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const chatId = params.id as string;
   const initialMessage = searchParams.get("message");
-  const { threads, refresh: refreshThreads } = useThreads();
+  const { threads, refresh: refreshThreads, validateThread } = useThreads();
   const { setSelectedId } = useThreadSelection();
   const {
     messages,
     refresh,
-    loadMore,
-    hasMore,
-    isLoadingMore,
     togglePin,
     updateTickets,
     sendUserMessage,
@@ -89,8 +86,19 @@ export default function ChatPage() {
     }
   }, [chatId, setSelectedId]);
 
-  // Do not redirect away if thread list hasn't caught up yet; avoid flicker.
-  // We rely on message posting to surface errors for invalid IDs.
+  // Validate thread exists and redirect if invalid
+  useEffect(() => {
+    if (!chatId) return;
+
+    const checkThread = async () => {
+      const isValid = await validateThread(chatId);
+      if (!isValid) {
+        router.replace("/");
+      }
+    };
+
+    checkThread();
+  }, [chatId, validateThread, router]);
 
   const onSend = useCallback(
     async (text: string) => {
@@ -108,7 +116,17 @@ export default function ChatPage() {
       // Persist user message via hook
       try {
         await sendUserMessage(text);
-      } catch {
+      } catch (err) {
+        // Check if this is a thread not found error
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        if (
+          errorMessage.includes("Thread not found") ||
+          errorMessage.includes("404")
+        ) {
+          // Thread doesn't exist, redirect to home
+          router.replace("/");
+          return;
+        }
         show("Failed to send message", "error");
         setOptimisticUser(null);
         return;
@@ -138,8 +156,8 @@ export default function ChatPage() {
       // Stream assistant echo from /api/chat
       const t = threads.find((x) => x.id === useThreadId);
       const selectedModel = globalSpec || t?.defaultModel || DEFAULT_SPEC;
-      const TICK_MS = 33; // ~30fps
-      const CHARS_PER_TICK = 3; // reveal a few chars per tick
+      const TICK_MS = 16; // ~60fps
+      const CHARS_PER_TICK = 8; // reveal more chars per tick for faster streaming
 
       const tick = () => {
         const tw = typewriterRef.current;
@@ -221,6 +239,7 @@ export default function ChatPage() {
       globalSpec,
       sendUserMessage,
       streamChat,
+      router,
     ],
   );
 
@@ -311,9 +330,6 @@ export default function ChatPage() {
         isStreaming={!!pending}
         mode={mode}
         onChangeMode={handleModeChange}
-        onLoadMoreTop={loadMore}
-        hasMore={hasMore}
-        isLoadingMore={isLoadingMore}
         onTogglePin={(id, next) => togglePin(id, next)}
         onUpdateTickets={(id, tickets) => updateTickets(id, tickets)}
       />
