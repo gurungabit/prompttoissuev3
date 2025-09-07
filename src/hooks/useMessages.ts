@@ -33,6 +33,8 @@ export function useMessages(
   const { data, error, isLoading, isValidating, mutate, size, setSize } =
     useSWRInfinite(getKey, fetcher, {
       revalidateFirstPage: true,
+      dedupingInterval: 5000, // Prevent duplicate requests for 5 seconds
+      focusThrottleInterval: 10000, // Throttle focus revalidation to max once per 10s
     });
 
   async function sendUserMessage(content: string) {

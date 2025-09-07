@@ -36,7 +36,10 @@ export function useThreads(opts: UseThreadsOptions = {}) {
     return `/api/threads?${qs.toString()}`;
   };
   const { data, error, size, setSize, isLoading, isValidating } =
-    useSWRInfinite(getKey, fetcher);
+    useSWRInfinite(getKey, fetcher, {
+      dedupingInterval: 5000, // Prevent duplicate requests for 5 seconds
+      focusThrottleInterval: 10000, // Throttle focus revalidation to max once per 10s
+    });
 
   async function create(title?: string) {
     const res = await fetch("/api/threads", {
