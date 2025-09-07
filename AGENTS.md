@@ -22,10 +22,11 @@
 - API routes in `src/app/api/.../route.ts`.
 - Prefer explicit schemas over `z.any()`; use `z.unknown()` or structured shapes when possible.
 
-### Zod Versioning (Important)
-- MCP code (anything under `src/mcp/**` using `@modelcontextprotocol/sdk`): use Zod v3 semantics and pass raw shapes (i.e., `ZodRawShape`) to MCP APIs. Concretely, define tool inputs as plain shapes: `inputSchema: { a: z.number(), b: z.number() }` — do not pass `z.object({...})` to `tool`/`registerTool`.
-- App code (everywhere else): use Zod v4 as normal, including `z.object({...})` and `z.infer<typeof Schema>`.
-- Rationale: MCP’s current TypeScript SDK expects raw shapes for params; keeping MCP usage Zod v3–compatible avoids type mismatches while the rest of the app can leverage Zod v4.
+### Zod Usage (Important)
+- Entire codebase uses Zod v3 consistently across all modules.
+- MCP code (anything under `src/mcp/**` using `@modelcontextprotocol/sdk`): pass raw shapes to MCP APIs. Concretely, define tool inputs as plain shapes: `inputSchema: { a: z.number(), b: z.number() }` — do not pass `z.object({...})` to `tool`/`registerTool`.
+- App code (everywhere else): use `z.object({...})` for validation and `z.infer<typeof Schema>` for types as normal.
+- Rationale: MCP's TypeScript SDK expects raw shapes for params; consistent Zod v3 usage across codebase avoids version conflicts.
 
 ## React & Component Practices
 - Keep component files ~200–300 LOC; extract subcomponents/hooks when larger.

@@ -14,8 +14,10 @@ import { streamAssistant } from "../../../lib/llm";
 import { DEFAULT_SPEC } from "../../../lib/llm-config";
 import { validateSpec } from "../../../lib/llm-validate";
 import {
+  ASSISTANT_PROMPT,
   MARKDOWN_GUARDRAIL_PROMPT,
   TICKETS_PROMPT,
+  TICKETS_RESEARCH_PROMPT,
 } from "../../../lib/prompts";
 import { summarizeThread } from "../../../lib/summarize";
 import { parseTicketsFromText } from "../../../lib/tickets";
@@ -80,18 +82,24 @@ export async function POST(req: NextRequest) {
   }
 
   if (parsed.data.mode === "ticket") {
-    // In ticket mode, inject ticketing system prompt and withhold streaming until JSON completes.
-    const ticketSpecText = TICKETS_PROMPT;
-    const result = await streamAssistant(
-      [
-        {
-          role: "system",
-          content: ticketSpecText || "Output tickets JSON as specified.",
-        },
-        ...finalPrompt,
-      ],
-      spec
+    const messagesForTickets = [
+      { role: "system" as const, content: TICKETS_RESEARCH_PROMPT },
+      { role: "system" as const, content: TICKETS_PROMPT },
+      ...prompt,
+    ];
+
+    // Check if GitLab URL is present to enforce tool usage for research
+    const hasGitLabUrl = messagesForTickets.some(msg => 
+      typeof msg.content === 'string' && /https?:\/\/[^\s]*gitlab\.com\//i.test(msg.content)
     );
+
+    // eslint-disable-next-line no-console
+    console.log('[TICKET] GitLab URL detection:', { hasGitLabUrl, messagesCount: messagesForTickets.length });
+
+    const result = await streamAssistant(messagesForTickets, spec, {
+      allowPrefetch: false,
+      enforceFirstToolCall: hasGitLabUrl,
+    });
     const reader = result.textStream.getReader();
     let acc = "";
     // drain fully
@@ -127,7 +135,12 @@ export async function POST(req: NextRequest) {
       },
     });
   } else {
-    const result = await streamAssistant(finalPrompt, spec);
+    // Assistant mode: prepend expert assistant prompt
+    const assistantMessages = [
+      { role: "system" as const, content: ASSISTANT_PROMPT },
+      ...finalPrompt,
+    ];
+    const result = await streamAssistant(assistantMessages, spec);
     const textStream = result.textStream; // stream of string tokens
     const encoder = new TextEncoder();
     let acc = "";

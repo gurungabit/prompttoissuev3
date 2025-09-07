@@ -11,7 +11,8 @@
     "lint:fix:unsafe": "biome check --write --unsafe",
     "format": "biome format --write",
     "db:push": "drizzle-kit push",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "mcp:gitlab": "tsx src/mcp/gitlab/index.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.12",
@@ -42,6 +43,7 @@
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.4",
     "tailwindcss": "^4",
+    "tsx": "^4.20.5",
     "typescript": "^5"
   }
 }

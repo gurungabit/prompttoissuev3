@@ -1,9 +1,9 @@
-import { z } from "zod";
 import {
   McpServer,
   ResourceTemplate,
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
 
 /*
   GitLab MCP Server (STDIO)
@@ -25,8 +25,9 @@ const GITLAB_TOKEN = process.env.GITLAB_TOKEN || "";
 
 function ensureToken(): void {
   if (!GITLAB_TOKEN) {
-    throw new Error(
-      "GITLAB_TOKEN is required for authenticated requests. Set it in the environment."
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[MCP][GitLab] No GITLAB_TOKEN set. Proceeding unauthenticated (public projects only).",
     );
   }
 }
@@ -36,11 +37,19 @@ function encodeProjectId(projectIdOrPath: string): string {
   return encodeURIComponent(projectIdOrPath);
 }
 
+function logToolCall(name: string, params: unknown) {
+  try {
+    // Important: log to stderr only; stdout is reserved for MCP JSON-RPC
+    // eslint-disable-next-line no-console
+    console.error(`[MCP][GitLab][tool] ${name}`, params);
+  } catch {}
+}
+
 async function gitlabJson<T extends Json>(
   path: string,
   init?: RequestInit & {
     searchParams?: Record<string, string | number | boolean | undefined>;
-  }
+  },
 ): Promise<T> {
   const url = new URL(`${GITLAB_HOST}/api/v4${path}`);
   if (init?.searchParams) {
@@ -68,7 +77,7 @@ async function gitlabText(
   path: string,
   init?: RequestInit & {
     searchParams?: Record<string, string | number | boolean | undefined>;
-  }
+  },
 ): Promise<string> {
   const url = new URL(`${GITLAB_HOST}/api/v4${path}`);
   if (init?.searchParams) {
@@ -97,7 +106,7 @@ function GITLAB_TOKenSafe(): string {
 async function gitlabPaginated<T extends Json>(
   path: string,
   params: Record<string, string | number | boolean | undefined>,
-  maxPages = 10
+  maxPages = 10,
 ): Promise<T[]> {
   const results: T[] = [];
   let page = 1;
@@ -153,6 +162,9 @@ const server = new McpServer({
   name: "gitlab-mcp",
   version: "0.1.0",
 });
+// Important: log to stderr only; stdout is reserved for MCP JSON-RPC
+// eslint-disable-next-line no-console
+console.error("[MCP][GitLab] Server initialized", { host: GITLAB_HOST });
 
 // Tool: list_projects
 server.registerTool(
@@ -170,6 +182,13 @@ server.registerTool(
     },
   },
   async ({ search, membership, archived, simple, maxPages }) => {
+    logToolCall("list_projects", {
+      search,
+      membership,
+      archived,
+      simple,
+      maxPages,
+    });
     ensureToken();
     const itemsUnknown = await gitlabPaginated<unknown>(
       "/projects",
@@ -181,7 +200,7 @@ server.registerTool(
         order_by: "last_activity_at",
         sort: "desc",
       },
-      maxPages ?? 5
+      maxPages ?? 5,
     );
     const items = z.array(z.object(ProjectShape)).parse(itemsUnknown);
 
@@ -199,12 +218,12 @@ server.registerTool(
               web_url: p.web_url ?? null,
             })),
             null,
-            2
+            2,
           ),
         },
       ],
     };
-  }
+  },
 );
 
 // Tool: get_project
@@ -218,15 +237,16 @@ server.registerTool(
     },
   },
   async ({ projectIdOrPath }) => {
+    logToolCall("get_project", { projectIdOrPath });
     ensureToken();
     const projectUnknown = await gitlabJson<unknown>(
-      `/projects/${encodeProjectId(projectIdOrPath)}`
+      `/projects/${encodeProjectId(projectIdOrPath)}`,
     );
     const project = z.object(ProjectShape).passthrough().parse(projectUnknown);
     return {
       content: [{ type: "text", text: JSON.stringify(project, null, 2) }],
     };
-  }
+  },
 );
 
 // Tool: list_branches
@@ -242,11 +262,12 @@ server.registerTool(
     },
   },
   async ({ projectIdOrPath, search, maxPages }) => {
+    logToolCall("list_branches", { projectIdOrPath, search, maxPages });
     ensureToken();
     const branchesUnknown = await gitlabPaginated<unknown>(
       `/projects/${encodeProjectId(projectIdOrPath)}/repository/branches`,
       { search },
-      maxPages ?? 2
+      maxPages ?? 2,
     );
     const branches = z.array(z.object(BranchShape)).parse(branchesUnknown);
     return {
@@ -256,12 +277,12 @@ server.registerTool(
           text: JSON.stringify(
             branches.map((b) => ({ name: b.name, default: !!b.default })),
             null,
-            2
+            2,
           ),
         },
       ],
     };
-  }
+  },
 );
 
 // Tool: list_files
@@ -280,6 +301,13 @@ server.registerTool(
     },
   },
   async ({ projectIdOrPath, ref, path, recursive, maxPages }) => {
+    logToolCall("list_files", {
+      projectIdOrPath,
+      ref,
+      path,
+      recursive,
+      maxPages,
+    });
     ensureToken();
     const itemsUnknown = await gitlabPaginated<unknown>(
       `/projects/${encodeProjectId(projectIdOrPath)}/repository/tree`,
@@ -288,14 +316,14 @@ server.registerTool(
         path,
         recursive: recursive ?? true,
       },
-      maxPages ?? 10
+      maxPages ?? 10,
     );
     const items = z.array(z.object(TreeItemShape)).parse(itemsUnknown);
     const files = items.filter((i) => i.type === "blob");
     return {
       content: [{ type: "text", text: JSON.stringify(files, null, 2) }],
     };
-  }
+  },
 );
 
 // Tool: read_file
@@ -312,18 +340,142 @@ server.registerTool(
     },
   },
   async ({ projectIdOrPath, filePath, ref, maxBytes }) => {
+    logToolCall("read_file", { projectIdOrPath, filePath, ref, maxBytes });
     ensureToken();
     const encodedProject = encodeProjectId(projectIdOrPath);
     const encodedPath = encodeURIComponent(filePath);
     const text = await gitlabText(
       `/projects/${encodedProject}/repository/files/${encodedPath}/raw`,
-      { searchParams: { ref } }
+      { searchParams: { ref } },
     );
     const limit = maxBytes ?? 200_000;
     const truncated =
-      text.length > limit ? text.slice(0, limit) + "\n... [truncated]" : text;
+      text.length > limit ? `${text.slice(0, limit)}\n... [truncated]` : text;
     return { content: [{ type: "text", text: truncated }] };
-  }
+  },
+);
+
+// Tool: read_file_smart
+server.registerTool(
+  "read_file_smart",
+  {
+    title: "Read file by name or path",
+    description:
+      "Read repository file by exact path or best-effort name lookup (uses search, prefers matches under basePath).",
+    inputSchema: {
+      projectIdOrPath: z.string(),
+      nameOrPath: z.string(),
+      ref: z.string().optional(),
+      basePath: z.string().optional(),
+      maxBytes: z.number().min(1).max(5_000_000).default(200_000).optional(),
+      maxPages: z.number().min(1).max(50).default(3).optional(),
+    },
+  },
+  async ({
+    projectIdOrPath,
+    nameOrPath,
+    ref,
+    basePath,
+    maxBytes,
+    maxPages,
+  }) => {
+    logToolCall("read_file_smart", {
+      projectIdOrPath,
+      nameOrPath,
+      ref,
+      basePath,
+      maxBytes,
+      maxPages,
+    });
+    ensureToken();
+    const encodedProject = encodeProjectId(projectIdOrPath);
+
+    async function readByPath(path: string): Promise<string> {
+      const encodedPath = encodeURIComponent(path);
+      return gitlabText(
+        `/projects/${encodedProject}/repository/files/${encodedPath}/raw`,
+        { searchParams: { ref } },
+      );
+    }
+
+    function scorePath(path: string): number {
+      // Higher score is better
+      let score = 0;
+      const name = nameOrPath.replace(/^\.+\//, "");
+      if (path.endsWith(name)) score += 5;
+      if (basePath && path.startsWith(basePath)) score += 3;
+      // prefer shorter paths when tie
+      score += Math.max(0, 200 - path.length) / 200;
+      return score;
+    }
+
+    try {
+      // If explicit path-like input, try direct read first
+      if (nameOrPath.includes("/")) {
+        const text = await readByPath(nameOrPath);
+        const limit = maxBytes ?? 200_000;
+        const truncated =
+          text.length > limit
+            ? `${text.slice(0, limit)}\n... [truncated]`
+            : text;
+        return {
+          content: [{ type: "text", text: truncated }],
+        };
+      }
+    } catch {
+      // fall through to search
+    }
+
+    // Use GitLab code search to find candidate paths
+    const resultsUnknown = await gitlabPaginated<unknown>(
+      `/projects/${encodedProject}/search`,
+      {
+        scope: "blobs",
+        search: nameOrPath,
+        ref,
+      },
+      maxPages ?? 3,
+    );
+    const results = z
+      .array(z.object(BlobSearchResultShape))
+      .parse(resultsUnknown);
+    const ranked = results
+      .map((r) => ({ path: r.path, s: scorePath(r.path) }))
+      .sort((a, b) => b.s - a.s);
+
+    if (ranked.length === 0) {
+      return {
+        content: [
+          { type: "text", text: `No file found matching '${nameOrPath}'.` },
+        ],
+      };
+    }
+
+    // Try reading top candidate
+    const chosen = ranked[0].path;
+    try {
+      const text = await readByPath(chosen);
+      const limit = maxBytes ?? 200_000;
+      const truncated =
+        text.length > limit ? `${text.slice(0, limit)}\n... [truncated]` : text;
+      return {
+        content: [
+          { type: "text", text: truncated },
+          {
+            type: "text",
+            text: `\n[read_file_smart path=${chosen}${ref ? ` ref=${ref}` : ""}]`,
+          },
+        ],
+      };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return {
+        content: [
+          { type: "text", text: `Failed to read '${chosen}': ${message}` },
+        ],
+      };
+    }
+  },
 );
 
 // Tool: search_code
@@ -341,6 +493,7 @@ server.registerTool(
     },
   },
   async ({ projectIdOrPath, query, ref, maxPages }) => {
+    logToolCall("search_code", { projectIdOrPath, query, ref, maxPages });
     ensureToken();
     const encodedProject = encodeProjectId(projectIdOrPath);
     // GitLab search API: /projects/:id/search?scope=blobs&search=foo
@@ -351,7 +504,7 @@ server.registerTool(
         search: query,
         ref,
       },
-      maxPages ?? 3
+      maxPages ?? 3,
     );
     const results = z
       .array(z.object(BlobSearchResultShape))
@@ -364,7 +517,7 @@ server.registerTool(
         },
       ],
     };
-  }
+  },
 );
 
 // Tool: languages
@@ -376,15 +529,16 @@ server.registerTool(
     inputSchema: { projectIdOrPath: z.string() },
   },
   async ({ projectIdOrPath }) => {
+    logToolCall("list_languages", { projectIdOrPath });
     ensureToken();
     const languagesUnknown = await gitlabJson<unknown>(
-      `/projects/${encodeProjectId(projectIdOrPath)}/languages`
+      `/projects/${encodeProjectId(projectIdOrPath)}/languages`,
     );
     const languages = LanguagesShape.parse(languagesUnknown);
     return {
       content: [{ type: "text", text: JSON.stringify(languages, null, 2) }],
     };
-  }
+  },
 );
 
 // Tool: get_readme (best-effort)
@@ -397,10 +551,11 @@ server.registerTool(
     inputSchema: { projectIdOrPath: z.string(), ref: z.string().optional() },
   },
   async ({ projectIdOrPath, ref }) => {
+    logToolCall("get_readme", { projectIdOrPath, ref });
     ensureToken();
     // Determine default branch if not provided
     const projectUnknown = await gitlabJson<unknown>(
-      `/projects/${encodeProjectId(projectIdOrPath)}`
+      `/projects/${encodeProjectId(projectIdOrPath)}`,
     );
     const project = z.object(ProjectShape).passthrough().parse(projectUnknown);
     const branch = ref ?? project.default_branch ?? "main";
@@ -415,9 +570,9 @@ server.registerTool(
       try {
         const text = await gitlabText(
           `/projects/${encodeProjectId(
-            projectIdOrPath
+            projectIdOrPath,
           )}/repository/files/${encodeURIComponent(fname)}/raw`,
-          { searchParams: { ref: branch } }
+          { searchParams: { ref: branch } },
         );
         return { content: [{ type: "text", text }] };
       } catch {
@@ -425,7 +580,7 @@ server.registerTool(
       }
     }
     return { content: [{ type: "text", text: "README not found" }] };
-  }
+  },
 );
 
 // Tool: gather_repo_overview — quick, compact snapshot for LLM context
@@ -444,26 +599,34 @@ server.registerTool(
     },
   },
   async ({ projectIdOrPath, ref, topNFiles, filePatterns, readmeBytes }) => {
+    logToolCall("gather_repo_overview", {
+      projectIdOrPath,
+      ref,
+      topNFiles,
+      filePatterns,
+      readmeBytes,
+    });
     ensureToken();
-    const project = await gitlabJson<any>(
-      `/projects/${encodeProjectId(projectIdOrPath)}`
+    const projectUnknown = await gitlabJson<unknown>(
+      `/projects/${encodeProjectId(projectIdOrPath)}`,
     );
+    const project = z.object(ProjectShape).passthrough().parse(projectUnknown);
     const branch = ref ?? project.default_branch ?? "main";
 
     const [languagesUnknown, branchesUnknown, treeItemsUnknown] =
       await Promise.all([
         gitlabJson<unknown>(
-          `/projects/${encodeProjectId(projectIdOrPath)}/languages`
+          `/projects/${encodeProjectId(projectIdOrPath)}/languages`,
         ),
         gitlabPaginated<unknown>(
           `/projects/${encodeProjectId(projectIdOrPath)}/repository/branches`,
           {},
-          1
+          1,
         ),
         gitlabPaginated<unknown>(
           `/projects/${encodeProjectId(projectIdOrPath)}/repository/tree`,
           { ref: branch, recursive: true },
-          5
+          5,
         ),
       ]);
     const languages = LanguagesShape.parse(languagesUnknown);
@@ -492,14 +655,14 @@ server.registerTool(
         try {
           const text = await gitlabText(
             `/projects/${encodeProjectId(
-              projectIdOrPath
+              projectIdOrPath,
             )}/repository/files/${encodeURIComponent(fname)}/raw`,
-            { searchParams: { ref: branch } }
+            { searchParams: { ref: branch } },
           );
           const limit = readmeBytes ?? 100_000;
           readme =
             text.length > limit
-              ? text.slice(0, limit) + "\n... [truncated]"
+              ? `${text.slice(0, limit)}\n... [truncated]`
               : text;
           break;
         } catch {
@@ -528,7 +691,138 @@ server.registerTool(
     return {
       content: [{ type: "text", text: JSON.stringify(overview, null, 2) }],
     };
-  }
+  },
+);
+
+// Tool: collect_review_bundle — curated, multi-call repo context for code review
+server.registerTool(
+  "collect_review_bundle",
+  {
+    title: "Collect code review bundle",
+    description:
+      "Collects project metadata, languages, selected key files (README, configs), and an optional subpath listing for code review.",
+    inputSchema: {
+      projectIdOrPath: z.string(),
+      ref: z.string().optional(),
+      basePath: z.string().optional(),
+      includeGlobs: z.array(z.string()).optional(),
+      maxFiles: z.number().min(1).max(200).default(40).optional(),
+      maxBytesPerFile: z
+        .number()
+        .min(1000)
+        .max(500_000)
+        .default(100_000)
+        .optional(),
+      maxPages: z.number().min(1).max(50).default(5).optional(),
+    },
+  },
+  async ({
+    projectIdOrPath,
+    ref,
+    basePath,
+    includeGlobs,
+    maxFiles,
+    maxBytesPerFile,
+    maxPages,
+  }) => {
+    logToolCall("collect_review_bundle", {
+      projectIdOrPath,
+      ref,
+      basePath,
+      includeGlobs,
+      maxFiles,
+      maxBytesPerFile,
+      maxPages,
+    });
+    ensureToken();
+
+    const encodedProject = encodeProjectId(projectIdOrPath);
+    // Resolve default branch if needed
+    let branch = ref ?? "";
+    if (!branch) {
+      try {
+        const projectUnknown = await gitlabJson<unknown>(
+          `/projects/${encodedProject}`,
+        );
+        const project = z
+          .object(ProjectShape)
+          .passthrough()
+          .parse(projectUnknown);
+        branch = project?.default_branch ?? "main";
+      } catch {
+        branch = "main";
+      }
+    }
+
+    const defaults = [
+      "README*",
+      "readme*",
+      "package.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "package-lock.json",
+      "tsconfig.json",
+      "biome.json",
+      "eslint*",
+      ".eslintrc*",
+      ".prettierrc*",
+      "prettier*",
+      "Dockerfile",
+      "docker-compose.yml",
+      ".gitlab-ci.yml",
+    ];
+    const globs = (
+      includeGlobs && includeGlobs.length > 0 ? includeGlobs : defaults
+    ).map((g) => globToRegExp(g));
+
+    // List tree recursively under basePath (or root)
+    const treeUnknown = await gitlabPaginated<unknown>(
+      `/projects/${encodedProject}/repository/tree`,
+      { ref: branch, path: basePath, recursive: true },
+      maxPages ?? 5,
+    );
+    const tree = z.array(z.object(TreeItemShape)).parse(treeUnknown);
+    const files = tree.filter((i) => i.type === "blob");
+    const keyFiles = files
+      .filter((f) => globs.some((re) => re.test(f.path)))
+      .slice(0, maxFiles ?? 40)
+      .map((f) => f.path);
+
+    async function read(path: string): Promise<{ path: string; text: string }> {
+      const text = await gitlabText(
+        `/projects/${encodedProject}/repository/files/${encodeURIComponent(path)}/raw`,
+        { searchParams: { ref: branch } },
+      );
+      const limit = maxBytesPerFile ?? 100_000;
+      const truncated =
+        text.length > limit ? `${text.slice(0, limit)}\n... [truncated]` : text;
+      return { path, text: truncated };
+    }
+
+    const [languagesUnknown, reads] = await Promise.all([
+      gitlabJson<unknown>(`/projects/${encodedProject}/languages`),
+      Promise.all(keyFiles.map((p) => read(p)).slice(0, maxFiles ?? 40)),
+    ]);
+    const languages = LanguagesShape.parse(languagesUnknown);
+
+    const bundle = {
+      meta: {
+        project: projectIdOrPath,
+        ref: branch,
+        basePath: basePath ?? "/",
+      },
+      languages,
+      keyFiles: reads,
+      counts: {
+        totalTreeFiles: files.length,
+        included: reads.length,
+      },
+    };
+
+    return {
+      content: [{ type: "text", text: JSON.stringify(bundle, null, 2) }],
+    };
+  },
 );
 
 // Helper: glob-to-regexp (naive, supports * and **)
@@ -547,7 +841,7 @@ server.registerResource(
   "gitlab-file",
   new ResourceTemplate(
     "gitlab://project/{projectIdOrPath}/file/{ref}/{filePath}",
-    { list: undefined }
+    { list: undefined },
   ),
   {
     title: "GitLab File",
@@ -562,12 +856,12 @@ server.registerResource(
     };
     const text = await gitlabText(
       `/projects/${encodeProjectId(
-        projectIdOrPath
+        projectIdOrPath,
       )}/repository/files/${encodeURIComponent(filePath)}/raw`,
-      { searchParams: { ref } }
+      { searchParams: { ref } },
     );
     return { contents: [{ uri: uri.href, text }] };
-  }
+  },
 );
 
 // Start STDIO transport if executed directly
