@@ -13,7 +13,7 @@ export type ValidatedSpec = {
 };
 
 export function validateSpec(
-  specInput: string | undefined
+  specInput: string | undefined,
 ):
   | { ok: true; value: ValidatedSpec }
   | { ok: false; error: string; status: number } {

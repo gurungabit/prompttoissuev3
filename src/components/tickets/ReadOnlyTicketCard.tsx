@@ -64,9 +64,9 @@ export function ReadOnlyTicketCard({ ticket }: { ticket: Ticket }) {
             Labels
           </div>
           <div className="flex flex-wrap gap-2">
-            {ticket.labels.map((l, i) => (
+            {ticket.labels.map((l) => (
               <span
-                key={`${l}-${i}`}
+                key={`${l}`}
                 className="inline-flex items-center gap-1 px-2 h-7 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-xs"
               >
                 {l}

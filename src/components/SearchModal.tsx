@@ -91,6 +91,7 @@ export function SearchModal({
               }}
             />
             <button
+              type="button"
               onClick={onClose}
               className="p-1 hover:bg-[color:var(--color-card)] rounded-lg transition-colors cursor-pointer"
             >
@@ -102,6 +103,8 @@ export function SearchModal({
           <div className="flex-1 overflow-y-auto">
             {/* New Chat Option */}
             <button
+              type="button"
+              aria-label="Start a new chat"
               onClick={handleNewChat}
               className="w-full flex items-center gap-3 p-3 hover:bg-[color:var(--color-card)] transition-colors text-left cursor-pointer"
             >
@@ -129,6 +132,7 @@ export function SearchModal({
                 </div>
                 {filteredThreads.slice(0, 10).map((thread) => (
                   <button
+                    type="button"
                     key={thread.id}
                     onClick={() => handleSelect(thread.id)}
                     className="w-full flex items-start gap-3 p-3 hover:bg-[color:var(--color-card)] transition-colors text-left cursor-pointer"

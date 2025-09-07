@@ -146,6 +146,7 @@ export function TicketsDrawer({
               </Button>
             )}
             <button
+              type="button"
               onClick={onClose}
               className="p-1 rounded hover:bg-[color:var(--color-card)] cursor-pointer"
               aria-label="Close tickets"

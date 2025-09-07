@@ -2,6 +2,7 @@
 import useSWRInfinite from "swr/infinite";
 import {
   PaginatedThreadsWithPreview,
+  type PaginatedThreadsWithPreview as PaginatedThreadsWithPreviewType,
   ThreadListItemSchema,
 } from "../lib/schemas";
 
@@ -24,7 +25,10 @@ export function useThreads(opts: UseThreadsOptions = {}) {
   if (typeof opts.archived === "boolean")
     base.set("archived", String(opts.archived));
   const baseQs = base.toString();
-  const getKey = (_index: number, prev: any) => {
+  const getKey = (
+    _index: number,
+    prev: PaginatedThreadsWithPreviewType | null,
+  ) => {
     if (prev && !prev.nextCursor) return null;
     const qs = new URLSearchParams(baseQs);
     if (prev?.nextCursor) qs.set("cursor", prev.nextCursor);
@@ -41,7 +45,7 @@ export function useThreads(opts: UseThreadsOptions = {}) {
       body: JSON.stringify({ title }),
     });
     const json = await res.json();
-    const thread = ThreadListItemSchema.parse(json as any);
+    const thread = ThreadListItemSchema.parse(json);
     await setSize(1);
     return thread;
   }

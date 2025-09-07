@@ -51,9 +51,8 @@ function Toaster({ toasts }: { toasts: Toast[] }) {
     <div className="pointer-events-none fixed inset-x-0 bottom-3 z-[100] flex justify-center sm:justify-end sm:pr-4">
       <div className="flex max-w-[90vw] flex-col gap-2">
         {toasts.map((t) => (
-          <div
+          <output
             key={t.id}
-            role="status"
             aria-live="polite"
             className={`pointer-events-auto rounded-md border px-3 py-2 text-sm shadow-[var(--shadow-elev-2)] backdrop-blur ${
               t.variant === "error"
@@ -64,7 +63,7 @@ function Toaster({ toasts }: { toasts: Toast[] }) {
             }`}
           >
             {t.message}
-          </div>
+          </output>
         ))}
       </div>
     </div>

@@ -1,8 +1,8 @@
 "use client";
 import { Cog, X } from "lucide-react";
 import { useState } from "react";
-import type { McpSettings } from "../lib/client/mcp-types";
 import { getMcpSettings, updateMcpSettings } from "../lib/client/mcp-client";
+import type { McpSettings } from "../lib/client/mcp-types";
 import { Button } from "./Button";
 import { Card } from "./Card";
 
@@ -11,6 +11,7 @@ export function SettingsButton() {
   return (
     <>
       <button
+        type="button"
         aria-label="Open settings"
         className="h-10 w-10 grid place-items-center rounded-lg border-none bg-transparent text-[color:var(--color-text)] hover:bg-[color:var(--color-card)] hover:opacity-90 cursor-pointer appearance-none focus:outline-none focus-visible:outline-none focus:ring-0"
         onClick={() => setOpen(true)}
@@ -32,9 +33,18 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <div
+      <button
+        type="button"
         className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 cursor-pointer"
+        aria-label="Close settings modal"
+        tabIndex={0}
         onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            onClose();
+          }
+        }}
+        style={{ all: "unset" }}
       />
       <div className="fixed inset-0 z-50 grid place-items-center p-4">
         <Card
@@ -58,6 +68,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
             <button
+              type="button"
               onClick={onClose}
               className="p-1 rounded hover:bg-[color:var(--color-surface)] cursor-pointer"
               aria-label="Close settings"
@@ -97,7 +108,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             </div>
 
             {/* Information */}
-            {settings.enabled && (
+            {/* {settings.enabled && (
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="text-sm font-medium text-blue-800 mb-1">
                   MCP Configuration
@@ -108,7 +119,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   MCP_GITLAB_ENABLED=true, GITLAB_TOKEN, etc.)
                 </div>
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Footer */}

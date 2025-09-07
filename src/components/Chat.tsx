@@ -90,11 +90,12 @@ export function Chat({
 
   // When streaming begins, ensure the typing indicator/new assistant bubble is visible.
   // Only do this if the user is already near the bottom (don't yank if they've scrolled up).
-  useEffect(() => {
-    if (!isStreaming) return;
-    if (!nearBottom) return;
-    requestAnimationFrame(scrollToBottomNow);
-  }, [isStreaming, nearBottom, scrollToBottomNow]);
+  // useEffect(() => {
+  //   if (!isStreaming) return;
+  //   if (!nearBottom) return;
+  //   requestAnimationFrame(scrollToBottomNow);
+  //   //biome-ignore lint/correctness/useExhaustiveDependencies:·false·positive
+  // }, [isStreaming, nearBottom, scrollToBottomNow]);
 
   // Track whether user is near the bottom of the scroll container
   // Use hysteresis + rAF + passive listener to avoid re-render thrash
@@ -152,6 +153,7 @@ export function Chat({
   }, []);
 
   // Recompute proximity when content changes, without forcing toggles
+  // biome-ignore lint/correctness/useExhaustiveDependencies: need the dependency to show scrollToBottomNow
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -163,7 +165,7 @@ export function Chat({
       const next = prev ? distance <= OUT : distance <= IN;
       return next === prev ? prev : next;
     });
-  }, []);
+  }, [messages, isStreaming]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,9 +236,9 @@ export function Chat({
                     "Bugfix: improve stream retry + errors",
                     "Docs: setup (env, Docker, Drizzle)",
                   ]
-              ).map((example, i) => (
+              ).map((example) => (
                 <button
-                  key={i}
+                  key={example}
                   onClick={() => sendAndScroll(example)}
                   className="p-4 text-left bg-[color:var(--color-surface)] border border-[color:var(--color-border)] rounded-lg hover:bg-[color:var(--color-card)] transition-colors cursor-pointer"
                 >

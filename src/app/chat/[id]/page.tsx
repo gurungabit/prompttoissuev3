@@ -14,9 +14,9 @@ import { useToast } from "../../../components/Toast";
 import { useSettings } from "../../../context/Settings";
 import { useThreadSelection } from "../../../context/ThreadSelection";
 import { useChatStream } from "../../../hooks/useChatStream";
-import { getMcpSettings } from "../../../lib/client/mcp-client";
 import { useMessages } from "../../../hooks/useMessages";
 import { useThreads } from "../../../hooks/useThreads";
+import { getMcpSettings } from "../../../lib/client/mcp-client";
 import { DEFAULT_SPEC } from "../../../lib/llm-config";
 
 export default function ChatPage() {
@@ -42,7 +42,7 @@ export default function ChatPage() {
   const [pending, setPending] = useState<ChatMessage | null>(null);
   // Optimistic user bubble while POST in-flight
   const [optimisticUser, setOptimisticUser] = useState<ChatMessage | null>(
-    null
+    null,
   );
   const { show } = useToast();
   // Use a ref to track the actual current mode (survives hot reloads)
@@ -221,7 +221,7 @@ export default function ChatPage() {
       globalSpec,
       sendUserMessage,
       streamChat,
-    ]
+    ],
   );
 
   // Cleanup on unmount: cancel any pending rAF to avoid leaks
@@ -259,7 +259,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!optimisticUser) return;
     const found = messages.some(
-      (m) => m.role === "user" && m.content === optimisticUser.content
+      (m) => m.role === "user" && m.content === optimisticUser.content,
     );
     if (found) setOptimisticUser(null);
   }, [messages, optimisticUser]);
@@ -268,7 +268,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!pending) return;
     const found = messages.some(
-      (m) => m.role === "assistant" && m.content === pending.content
+      (m) => m.role === "assistant" && m.content === pending.content,
     );
     if (found) setPending(null);
   }, [messages, pending]);

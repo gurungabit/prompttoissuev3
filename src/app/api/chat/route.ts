@@ -10,8 +10,9 @@ import {
   buildContextMessages,
   estimateTokensForText,
 } from "../../../lib/chat-context";
-import { streamAssistant } from "../../../lib/server/llm";
+import { McpSettingsSchema } from "../../../lib/client/mcp-types";
 import { DEFAULT_SPEC } from "../../../lib/llm-config";
+import { streamAssistant } from "../../../lib/server/llm";
 import { validateSpec } from "../../../lib/server/llm-validate";
 import {
   ASSISTANT_PROMPT,
@@ -21,7 +22,6 @@ import {
 } from "../../../lib/server/prompts";
 import { summarizeThread } from "../../../lib/server/summarize";
 import { parseTicketsFromText } from "../../../lib/tickets";
-import { McpSettingsSchema } from "../../../lib/client/mcp-types";
 
 const SUMMARIZE_TOKEN_THRESHOLD = 3000;
 const SUMMARIZE_MESSAGE_THRESHOLD = 60;
@@ -33,7 +33,7 @@ const Body = z.object({
       z.object({
         role: z.enum(["user", "assistant", "system"]),
         content: z.string(),
-      })
+      }),
     )
     .nonempty(),
   model: z.string().optional().default("gemini-2.0-flash"),
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   if (!validation.ok) {
     return Response.json(
       { error: validation.error },
-      { status: validation.status }
+      { status: validation.status },
     );
   }
 
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     const hasGitLabUrl = messagesForTickets.some(
       (msg) =>
         typeof msg.content === "string" &&
-        /https?:\/\/[^\s]*gitlab\.com\//i.test(msg.content)
+        /https?:\/\/[^\s]*gitlab\.com\//i.test(msg.content),
     );
 
     // eslint-disable-next-line no-console

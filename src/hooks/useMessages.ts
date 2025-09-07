@@ -1,6 +1,9 @@
 "use client";
 import useSWRInfinite from "swr/infinite";
-import { PaginatedMessages } from "../lib/schemas";
+import {
+  PaginatedMessages,
+  type PaginatedMessages as PaginatedMessagesType,
+} from "../lib/schemas";
 import type { TicketsPayload } from "../lib/tickets";
 
 const fetcher = async (url: string) => {
@@ -18,7 +21,7 @@ export function useMessages(
   threadId: string | null,
   _opts: UseMessagesOptions = {},
 ) {
-  const getKey = (_index: number, prev: any) => {
+  const getKey = (_index: number, prev: PaginatedMessagesType | null) => {
     if (!threadId) return null;
     if (prev && !prev.nextCursor) return null;
     const qs = new URLSearchParams();

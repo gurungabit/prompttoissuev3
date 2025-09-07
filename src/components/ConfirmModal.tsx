@@ -34,9 +34,6 @@ export function ConfirmModal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 cursor-pointer"
-        role="button"
-        tabIndex={0}
-        aria-label="Close dialog"
         onClick={onClose}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") onClose();

@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
 import { getDb } from "./client";
 import { messages, threadReads, threads, users } from "./schema";
 
@@ -10,13 +10,15 @@ export async function listThreads({
   archived?: boolean;
 }) {
   const db = getDb();
-  const where = [] as any[];
+  const where: SQL[] = [];
   if (typeof archived === "boolean") where.push(eq(threads.archived, archived));
   if (q?.trim()) {
     const needle = `%${q.trim()}%`;
-    where.push(
-      or(ilike(threads.title, needle), ilike(threads.summaryText, needle)),
+    const searchCondition = or(
+      ilike(threads.title, needle),
+      ilike(threads.summaryText, needle),
     );
+    if (searchCondition) where.push(searchCondition);
   }
   const rows = await db
     .select()

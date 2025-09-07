@@ -3,11 +3,11 @@ import {
   type experimental_MCPClient as MCPClient,
   type ToolSet,
 } from "ai";
+import { Experimental_StdioMCPTransport as StdioMCPTransport } from "ai/mcp-stdio";
 import {
   getServerMcpConnections,
   type ServerMcpConnection,
 } from "./server-config";
-import { Experimental_StdioMCPTransport as StdioMCPTransport } from "ai/mcp-stdio";
 
 // Global MCP client registry
 const mcpClients = new Map<string, Promise<MCPClient>>();
@@ -22,7 +22,7 @@ export function setClientMcpEnabled(enabled: boolean): void {
 }
 
 async function createMcpClient(
-  config: ServerMcpConnection
+  config: ServerMcpConnection,
 ): Promise<MCPClient> {
   if (!config.enabled) {
     throw new Error(`MCP connection "${config.name}" is disabled`);
@@ -85,7 +85,7 @@ async function createMcpClient(
 
 async function ensureMcpClient(connectionId: string): Promise<MCPClient> {
   if (mcpClients.has(connectionId)) {
-    return mcpClients.get(connectionId)!;
+    return mcpClients.get(connectionId) as Promise<MCPClient>;
   }
 
   if (!clientMcpEnabled) {
@@ -104,7 +104,7 @@ async function ensureMcpClient(connectionId: string): Promise<MCPClient> {
 }
 
 export async function getMcpTools(
-  connectionId: string
+  connectionId: string,
 ): Promise<ToolSet | null> {
   try {
     const client = await ensureMcpClient(connectionId);
@@ -120,7 +120,7 @@ export async function getMcpTools(
   } catch {
     // eslint-disable-next-line no-console
     console.warn(
-      `[MCP][${connectionId}] MCP tools not available — proceeding without tools`
+      `[MCP][${connectionId}] MCP tools not available — proceeding without tools`,
     );
     return null;
   }
@@ -150,7 +150,7 @@ export async function getAllMcpTools(): Promise<ToolSet> {
 }
 
 export async function getMcpToolCatalog(
-  connectionId: string
+  connectionId: string,
 ): Promise<Array<{ name: string; parameters: string[]; schema?: unknown }>> {
   try {
     const client = await ensureMcpClient(connectionId);

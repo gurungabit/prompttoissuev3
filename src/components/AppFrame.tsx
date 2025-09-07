@@ -11,7 +11,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { threads, create, rename, pin, remove, refresh } = useThreads();
+  const { threads, rename, pin, remove, refresh } = useThreads();
   const { selectedId, setSelectedId } = useThreadSelection();
 
   // Extract thread ID from URL if we're on a chat page

@@ -35,6 +35,7 @@ export function EditableList({
             }
           />
           <button
+            type="button"
             onClick={() => onChange(items.filter((x) => x.id !== it.id))}
             className="p-1 rounded hover:bg-[color:var(--color-card)] text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] cursor-pointer"
             aria-label="Remove"

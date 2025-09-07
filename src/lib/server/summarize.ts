@@ -37,15 +37,16 @@ export async function summarizeThread({
         ? createGoogleGenerativeAI({ apiKey: env.GOOGLE_API_KEY })
         : google
       : env.OPENAI_API_KEY
-      ? createOpenAI({ apiKey: env.OPENAI_API_KEY })
-      : openai;
+        ? createOpenAI({ apiKey: env.OPENAI_API_KEY })
+        : openai;
   const prompt = `Summarize the following chat thread titled "${threadTitle}".
 Return JSON with keys: narrative, highlights[], facts[], todos[], citations[].
 Always include all pinned messages in your reasoning. Citations must be the message ids referenced.
 
 Messages:\n${messages
     .map(
-      (m) => `- [${m.id}](${m.role}${m.pinned ? ", pinned" : ""}): ${m.content}`
+      (m) =>
+        `- [${m.id}](${m.role}${m.pinned ? ", pinned" : ""}): ${m.content}`,
     )
     .join("\n")}`;
 

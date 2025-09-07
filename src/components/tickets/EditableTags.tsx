@@ -28,7 +28,7 @@ export function EditableTags({
       <div className="flex flex-wrap gap-2">
         {values.map((l, i) => (
           <span
-            key={`${l}-${i}`}
+            key={`${l}`}
             className="inline-flex items-center gap-1 px-2 h-7 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-xs"
           >
             {l}

@@ -103,6 +103,7 @@ export function ModelPicker() {
             )}
             {filtered.map((opt) => (
               <button
+                type="button"
                 key={opt.id}
                 onClick={() => handleSelect(opt)}
                 className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-[color:var(--color-card)] cursor-pointer ${

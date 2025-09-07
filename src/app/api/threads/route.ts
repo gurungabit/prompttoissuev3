@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, lt, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, lt, or, type SQL } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import {
@@ -11,7 +11,18 @@ import { getDb } from "../../../db/client";
 import { messages, threadReads, threads } from "../../../db/schema";
 import { ThreadSchema } from "../../../lib/schemas";
 
-function serializeThread(row: any) {
+// Type for database row with dates that might be Date objects or strings
+type ThreadRow = {
+  id: string;
+  title: string;
+  createdAt: Date | string;
+  summaryText?: string | null;
+  summaryModel?: string | null;
+  summaryUpdatedAt?: Date | string | null;
+  archived?: boolean;
+};
+
+function serializeThread(row: ThreadRow) {
   return {
     ...row,
     createdAt:
@@ -77,22 +88,23 @@ export async function GET(req: NextRequest) {
 
   const cursor = parseCursor(cursorParam);
   const db = getDb();
-  const where = [] as any[];
+  const where: SQL[] = [];
   if (typeof archived === "boolean") where.push(eq(threads.archived, archived));
   if (q?.trim()) {
     const needle = `%${q.trim()}%`;
-    where.push(
-      or(ilike(threads.title, needle), ilike(threads.summaryText, needle)),
+    const searchCondition = or(
+      ilike(threads.title, needle),
+      ilike(threads.summaryText, needle),
     );
+    if (searchCondition) where.push(searchCondition);
   }
   if (cursor) {
     const createdAt = new Date(cursor.createdAt);
-    where.push(
-      or(
-        lt(threads.createdAt, createdAt),
-        and(eq(threads.createdAt, createdAt), lt(threads.id, cursor.id)),
-      ),
+    const cursorCondition = or(
+      lt(threads.createdAt, createdAt),
+      and(eq(threads.createdAt, createdAt), lt(threads.id, cursor.id)),
     );
+    if (cursorCondition) where.push(cursorCondition);
   }
   const rows = await db
     .select()
@@ -120,7 +132,7 @@ export async function GET(req: NextRequest) {
       .from(messages)
       .where(inArray(messages.threadId, ids))
       .orderBy(desc(messages.createdAt), desc(messages.id));
-    recent = rows as any;
+    recent = rows;
     const seen = new Set<string>();
     for (const m of rows) {
       if (seen.has(m.threadId)) continue;
@@ -186,7 +198,7 @@ export async function POST(req: NextRequest) {
   );
 }
 
-function makeCursor(row: any) {
+function makeCursor(row: { id: string; createdAt: Date | string }) {
   return Buffer.from(
     JSON.stringify({ id: row.id, createdAt: row.createdAt }),
   ).toString("base64");
@@ -205,13 +217,24 @@ function parseCursor(c: string | null) {
 }
 
 const PatchQuery = z.object({ id: z.string() });
+const PatchBody = z.object({
+  title: z.string().optional(),
+  archived: z.boolean().optional(),
+  summaryText: z.string().nullable().optional(),
+  summaryModel: z.string().nullable().optional(),
+});
+
 export async function PATCH(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = PatchQuery.safeParse({ id: searchParams.get("id") });
   if (!q.success)
     return Response.json({ error: q.error.message }, { status: 400 });
-  const patch = (await req.json()) as any;
-  await patchThread(q.data.id, patch);
+
+  const patchBody = PatchBody.safeParse(await req.json());
+  if (!patchBody.success)
+    return Response.json({ error: patchBody.error.message }, { status: 400 });
+
+  await patchThread(q.data.id, patchBody.data);
   return Response.json({ ok: true });
 }
 

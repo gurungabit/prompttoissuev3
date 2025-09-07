@@ -169,6 +169,7 @@ function CodeBlockWrapper({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={handleCopy}
             className="px-2 py-1 text-xs rounded bg-[color:var(--color-card)] border border-[color:var(--color-border)] hover:bg-[color:var(--color-surface)] text-[color:var(--color-text)] cursor-pointer"
             aria-label={copied ? "Copied" : "Copy code"}
@@ -291,7 +292,7 @@ export function MarkdownMessage({ content }: MarkdownMessageProps) {
     pre: ({ children }) => <CodeBlockWrapper>{children}</CodeBlockWrapper>,
     // Images: constrain size
     img: ({ src, alt }) => (
-      // eslint-disable-next-line @next/next/no-img-element
+      // biome-ignore lint/performance/noImgElement: Don't care for it..
       <img
         src={src ?? ""}
         alt={alt ?? ""}
