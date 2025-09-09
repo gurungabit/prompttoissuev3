@@ -1,4 +1,5 @@
 "use client";
+import { useCallback } from "react";
 import useSWRInfinite from "swr/infinite";
 import {
   PaginatedThreadsWithPreview,
@@ -95,10 +96,15 @@ export function useThreads(opts: UseThreadsOptions = {}) {
   const nextCursor = pages[pages.length - 1]?.nextCursor ?? null;
   const hasMore = !!nextCursor;
 
-  async function validateThread(id: string) {
+  const validateThread = useCallback(async (id: string) => {
+    // First check local cache to avoid unnecessary API calls during normal operation
+    const existsLocally = threads.some(t => t.id === id);
+    if (existsLocally) return true;
+    
+    // Only make API call if not found locally (e.g., after deletion)
     const res = await fetch(`/api/threads?id=${encodeURIComponent(id)}`);
     return res.ok;
-  }
+  }, [threads]);
 
   async function deleteAll() {
     if (threads.length === 0) return;
