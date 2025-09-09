@@ -1,10 +1,10 @@
 "use client";
-import { Cog, X } from "lucide-react";
+import { Cog, Plug, Server, X } from "lucide-react";
 import { useState } from "react";
-import { getMcpSettings, updateMcpSettings } from "../lib/client/mcp-client";
-import type { McpSettings } from "../lib/client/mcp-types";
 import { Button } from "./Button";
 import { Card } from "./Card";
+import { ConnectorsTab } from "./settings/ConnectorsTab";
+import { MCPTab } from "./settings/MCPTab";
 
 export function SettingsButton() {
   const [open, setOpen] = useState(false);
@@ -24,12 +24,9 @@ export function SettingsButton() {
 }
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
-  const [settings, setSettings] = useState<McpSettings>(() => getMcpSettings());
-
-  const handleSave = () => {
-    updateMcpSettings(settings);
-    onClose();
-  };
+  const [activeTab, setActiveTab] = useState<"mcp" | "connectors">(
+    "connectors",
+  );
 
   return (
     <>
@@ -63,7 +60,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   Settings
                 </div>
                 <div className="text-xs text-[color:var(--color-muted)]">
-                  Configure MCP connections and integrations
+                  Configure connections and integrations
                 </div>
               </div>
             </div>
@@ -77,58 +74,44 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
 
-          {/* MCP Settings */}
-          <div className="p-6 space-y-6">
-            {/* Global MCP Toggle */}
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium text-[color:var(--color-text)]">
-                  Enable MCP
-                </div>
-                <div className="text-xs text-[color:var(--color-muted)]">
-                  Model Context Protocol integrations for enhanced AI
-                  capabilities. Server-side MCP connections are configured via
-                  environment variables.
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={settings.enabled}
-                  onChange={(e) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      enabled: e.target.checked,
-                    }))
-                  }
-                />
-                <div className="w-11 h-6 bg-[color:var(--color-surface)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[color:var(--color-primary)]"></div>
-              </label>
+          {/* Tabs */}
+          <div className="border-b border-[color:var(--color-border)]">
+            <div className="flex px-6">
+              <button
+                onClick={() => setActiveTab("connectors")}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+                  activeTab === "connectors"
+                    ? "border-[color:var(--color-primary)] text-[color:var(--color-primary)]"
+                    : "border-transparent text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] hover:border-[color:var(--color-border)]"
+                }`}
+              >
+                <Plug size={16} />
+                Connectors
+              </button>
+              <button
+                onClick={() => setActiveTab("mcp")}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+                  activeTab === "mcp"
+                    ? "border-[color:var(--color-primary)] text-[color:var(--color-primary)]"
+                    : "border-transparent text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] hover:border-[color:var(--color-border)]"
+                }`}
+              >
+                <Server size={16} />
+                MCP
+              </button>
             </div>
+          </div>
 
-            {/* Information */}
-            {/* {settings.enabled && (
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="text-sm font-medium text-blue-800 mb-1">
-                  MCP Configuration
-                </div>
-                <div className="text-xs text-blue-700">
-                  MCP connections are configured server-side via environment
-                  variables. Currently supported: GitLab MCP (set
-                  MCP_GITLAB_ENABLED=true, GITLAB_TOKEN, etc.)
-                </div>
-              </div>
-            )} */}
+          {/* Tab Content */}
+          <div className="p-6">
+            {activeTab === "connectors" && <ConnectorsTab />}
+            {activeTab === "mcp" && <MCPTab />}
           </div>
 
           {/* Footer */}
           <div className="flex items-center justify-end gap-2 p-4 border-t border-[color:var(--color-border)]">
             <Button size="sm" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button size="sm" variant="solid" onClick={handleSave}>
-              Save Changes
+              Close
             </Button>
           </div>
         </Card>

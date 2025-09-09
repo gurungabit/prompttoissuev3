@@ -49,6 +49,18 @@ export function useMessages(
     await mutate();
   }
 
+  async function sendAssistantMessage(content: string) {
+    if (!threadId) throw new Error("threadId is required");
+    // Persist assistant message immediately
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ threadId, role: "assistant", content }),
+    });
+    if (!res.ok) throw new Error("Failed to send message");
+    await mutate();
+  }
+
   const pages = data ?? [];
   // Page 0 is the newest slice; older pages come after.
   // To display oldest → newest, flatten in reverse page order.
@@ -64,6 +76,7 @@ export function useMessages(
     isLoadingMore: isValidating,
     error: error as Error | undefined,
     sendUserMessage,
+    sendAssistantMessage,
     refresh: () => mutate(),
     loadMore: () => (hasMore ? setSize(size + 1) : Promise.resolve(size)),
     togglePin: async (messageId: string, pinned: boolean) => {

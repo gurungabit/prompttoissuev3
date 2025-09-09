@@ -33,6 +33,7 @@ export default function ChatPage() {
     togglePin,
     updateTickets,
     sendUserMessage,
+    sendAssistantMessage,
     deleteMessage,
   } = useMessages(chatId);
   const { streamChat } = useChatStream();
@@ -326,6 +327,7 @@ export default function ChatPage() {
       <Chat
         messages={merged}
         onSend={onSend}
+        onSendAssistant={sendAssistantMessage}
         onRegenerate={handleRegenerate}
         isStreaming={!!pending}
         mode={mode}

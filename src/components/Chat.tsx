@@ -1,6 +1,7 @@
 "use client";
 import { ChevronsDown, Copy, RotateCcw, Send, Ticket } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import type { TicketsPayload } from "../lib/tickets";
 import MarkdownMessage from "./MarkdownMessage";
 import ModelPicker from "./ModelPicker";
@@ -19,6 +20,7 @@ export type ChatMessage = {
 export type ChatProps = {
   messages: ChatMessage[];
   onSend: (text: string) => void;
+  onSendAssistant?: (text: string) => void;
   onRegenerate?: () => void;
   isStreaming?: boolean;
   onTogglePin?: (
@@ -36,6 +38,7 @@ export type ChatProps = {
 export function Chat({
   messages,
   onSend,
+  onSendAssistant,
   onRegenerate,
   isStreaming,
   mode = "assistant",
@@ -48,8 +51,6 @@ export function Chat({
   const [hasBelow, setHasBelow] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
-
-  // console.log("Mode:", mode);
 
   const scrollToBottomNow = () => {
     const el = scrollRef.current;
@@ -180,8 +181,8 @@ export function Chat({
     [messages, ticketOpenFor],
   );
 
-  return (
-    <div className="flex flex-col h-full bg-[color:var(--color-bg)]">
+  const renderChatContent = () => (
+    <div className="flex flex-col h-full">
       {/* Main Content Area */}
       <div
         ref={scrollRef}
@@ -202,7 +203,7 @@ export function Chat({
               <p className="text-lg text-[color:var(--color-muted)]">
                 {mode === "assistant"
                   ? "Ask questions, get explanations, and draft content."
-                  : "I’ll turn your requirements into structured, editable tickets."}
+                  : "I'll turn your requirements into structured, editable tickets."}
               </p>
             </div>
 
@@ -291,17 +292,31 @@ export function Chat({
                         {Boolean(message.ticketsJson) && (
                           <span className="relative inline-block">
                             <button
-                              onClick={() => setTicketOpenFor(message.id)}
+                              onClick={() =>
+                                setTicketOpenFor(
+                                  ticketOpenFor === message.id
+                                    ? null
+                                    : message.id,
+                                )
+                              }
                               className="peer p-1 rounded hover:bg-[color:var(--color-card)] text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] cursor-pointer"
-                              aria-label="Show tickets"
+                              aria-label={
+                                ticketOpenFor === message.id
+                                  ? "Hide tickets"
+                                  : "Show tickets"
+                              }
                             >
                               <div className="flex items-center gap-1">
                                 <Ticket size={16} />
-                                Show Tickets
+                                {ticketOpenFor === message.id
+                                  ? "Hide Tickets"
+                                  : "Show Tickets"}
                               </div>
                             </button>
                             <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-xs rounded bg-[color:var(--color-surface)] text-[color:var(--color-text)] border border-[color:var(--color-border)] shadow opacity-0 peer-hover:opacity-100">
-                              Show tickets
+                              {ticketOpenFor === message.id
+                                ? "Hide tickets"
+                                : "Show tickets"}
                             </span>
                           </span>
                         )}
@@ -382,13 +397,35 @@ export function Chat({
           </button>
         </form>
       </div>
-      {/* Tickets Drawer */}
-      {ticketOpenFor && messageForDrawer && (
-        <TicketsDrawer
-          initialTickets={messageForDrawer.ticketsJson ?? null}
-          onSave={(t) => onUpdateTickets?.(messageForDrawer.id, t)}
-          onClose={() => setTicketOpenFor(null)}
-        />
+    </div>
+  );
+
+  return (
+    <div className="h-full bg-[color:var(--color-bg)]">
+      {ticketOpenFor && messageForDrawer ? (
+        // Side-by-side resizable layout when tickets are open
+        <PanelGroup direction="horizontal" className="h-full">
+          <Panel defaultSize={60} minSize={30}>
+            {renderChatContent()}
+          </Panel>
+
+          {/* Resize Handle */}
+          <PanelResizeHandle className="w-2 bg-[color:var(--color-border)] hover:bg-[color:var(--color-primary)] transition-colors cursor-col-resize flex items-center justify-center group">
+            <div className="w-1 h-8 bg-[color:var(--color-muted)] group-hover:bg-white rounded-full transition-colors" />
+          </PanelResizeHandle>
+
+          <Panel defaultSize={40} minSize={25}>
+            <TicketsDrawer
+              initialTickets={messageForDrawer.ticketsJson ?? null}
+              onSave={(t) => onUpdateTickets?.(messageForDrawer.id, t)}
+              onClose={() => setTicketOpenFor(null)}
+              onSendMessage={onSendAssistant}
+            />
+          </Panel>
+        </PanelGroup>
+      ) : (
+        // Full-width chat when no tickets are open
+        renderChatContent()
       )}
     </div>
   );

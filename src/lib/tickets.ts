@@ -12,6 +12,14 @@ export const TaskItemSchema = z.object({
   completed: z.boolean(),
 });
 
+// GitLab integration schemas
+export const GitLabAssignmentSchema = z.object({
+  projectId: z.number(),
+  projectName: z.string(),
+  milestoneId: z.number().optional(),
+  milestoneName: z.string().optional(),
+});
+
 export const TicketSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -21,6 +29,7 @@ export const TicketSchema = z.object({
   labels: z.array(z.string()),
   priority: z.enum(["low", "medium", "high", "critical"]),
   type: z.enum(["feature", "bug", "task", "improvement"]),
+  gitlabAssignment: GitLabAssignmentSchema.optional(), // For individual ticket assignments
 });
 
 export const TicketsPayloadSchema = z.object({
@@ -29,10 +38,14 @@ export const TicketsPayloadSchema = z.object({
   reasoning: z.string(),
   needsClarification: z.boolean(),
   clarificationQuestions: z.array(z.string()),
+  // GitLab batch settings (when mode is "same")
+  globalGitlabAssignment: GitLabAssignmentSchema.optional(),
+  gitlabMode: z.enum(["same", "multiple"]).optional(),
 });
 
 export type TicketsPayload = z.infer<typeof TicketsPayloadSchema>;
 export type Ticket = z.infer<typeof TicketSchema>;
+export type GitLabAssignment = z.infer<typeof GitLabAssignmentSchema>;
 
 export function parseTicketsFromText(text: string): {
   payload: TicketsPayload | null;
