@@ -71,11 +71,12 @@ You MUST make multiple tool calls to gather comprehensive context. Continue rese
 Research thoroughly - generic tickets without specific file/module references indicate insufficient research.
 
 Important rules:
-- Make AT LEAST 5-6 tool calls for thorough research before generating tickets
-- ALWAYS use list_files with recursive=true to see the complete directory structure  
+- **Make MULTIPLE PARALLEL tool calls**: Use as many tool calls as needed simultaneously to gather maximum context efficiently
+- **Batch your research**: After getting repository tree, read multiple important files (package.json, README, main source files) in parallel
+- Start with get_repository_tree to see the complete structure, then make parallel read_file calls for key files
 - **ALWAYS read the project's dependency/config files** (package.json, requirements.txt, go.mod, Cargo.toml, etc.) to understand the tech stack
 - Search for existing patterns related to the user's request (use multiple search queries)
-- Read actual implementation files, not just overviews
+- Read actual implementation files, not just overviews - read several source files in parallel
 - Look for existing service files, API files, utilities that might already exist
 - Use tools only during your reasoning/research phase. Do not include tool output in your final message.
 - After you have comprehensive context, produce only the tickets JSON as specified in the tickets spec.
@@ -151,8 +152,10 @@ For requests involving **comprehensive analysis, detailed research, or "full det
 - Explore related functionality across the codebase
 
 ### Tool Usage Guidelines
-- **For thorough research requests**: Make multiple tool calls to build comprehensive understanding before responding
+- **Make MULTIPLE PARALLEL tool calls**: When researching repositories, make as many tool calls as needed simultaneously to gather maximum context efficiently
+- **For thorough research requests**: Use as many tool calls as necessary to build comprehensive understanding before responding
+- **Batch file reads**: After getting repository tree, read multiple key files (package.json, README, tsconfig.json, etc.) in parallel
 - **For simple questions**: Use tools sparingly or not at all (e.g., conceptual guidance, code review on provided snippets)
 - **Always summarize**: When tools provide large JSON outputs, summarize the information in clear prose; don't paste raw JSON
-- **Be systematic**: For repository analysis, follow a logical research flow (overview → structure → specific files → patterns)
+- **Be systematic but parallel**: Get repository overview first, then make multiple parallel calls to read important files
 `;

@@ -1,9 +1,22 @@
-import {
-  McpServer,
-  ResourceTemplate,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { globToRegExp } from "./analysis-utils.js";
+import {
+  encodeProjectId,
+  ensureToken,
+  gitlabJson,
+  gitlabPaginated,
+  gitlabText,
+  logToolCall,
+} from "./api.js";
+import {
+  BlobSearchResultShape,
+  BranchShape,
+  LanguagesShape,
+  ProjectShape,
+  TreeItemShape,
+} from "./types.js";
 
 /*
   GitLab MCP Server (STDIO)
@@ -17,146 +30,6 @@ import { z } from "zod";
       GITLAB_TOKEN  (required if private projects)
 */
 
-type Json = unknown;
-
-const GITLAB_HOST =
-  process.env.GITLAB_HOST?.replace(/\/$/, "") || "https://gitlab.com";
-const GITLAB_TOKEN = process.env.GITLAB_TOKEN || "";
-
-function ensureToken(): void {
-  if (!GITLAB_TOKEN) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      "[MCP][GitLab] No GITLAB_TOKEN set. Proceeding unauthenticated (public projects only).",
-    );
-  }
-}
-
-function encodeProjectId(projectIdOrPath: string): string {
-  // GitLab API allows either numeric ID or URL-encoded full path (group/subgroup/project)
-  return encodeURIComponent(projectIdOrPath);
-}
-
-function logToolCall(name: string, params: unknown) {
-  try {
-    // Important: log to stderr only; stdout is reserved for MCP JSON-RPC
-    // eslint-disable-next-line no-console
-    console.error(`[MCP][GitLab][tool] ${name}`, params);
-  } catch {}
-}
-
-async function gitlabJson<T extends Json>(
-  path: string,
-  init?: RequestInit & {
-    searchParams?: Record<string, string | number | boolean | undefined>;
-  },
-): Promise<T> {
-  const url = new URL(`${GITLAB_HOST}/api/v4${path}`);
-  if (init?.searchParams) {
-    for (const [k, v] of Object.entries(init.searchParams)) {
-      if (v === undefined) continue;
-      url.searchParams.set(k, String(v));
-    }
-  }
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (GITLAB_TOKEN) headers["PRIVATE-TOKEN"] = GITLAB_TOKenSafe();
-
-  const res = await fetch(url, { ...init, headers });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`GitLab API error ${res.status}: ${text}`);
-  }
-  // Some endpoints return text (e.g., empty), but tools use JSON endpoints here
-  return (await res.json()) as T;
-}
-
-async function gitlabText(
-  path: string,
-  init?: RequestInit & {
-    searchParams?: Record<string, string | number | boolean | undefined>;
-  },
-): Promise<string> {
-  const url = new URL(`${GITLAB_HOST}/api/v4${path}`);
-  if (init?.searchParams) {
-    for (const [k, v] of Object.entries(init.searchParams)) {
-      if (v === undefined) continue;
-      url.searchParams.set(k, String(v));
-    }
-  }
-
-  const headers: Record<string, string> = {};
-  if (GITLAB_TOKEN) headers["PRIVATE-TOKEN"] = GITLAB_TOKenSafe();
-
-  const res = await fetch(url, { ...init, headers });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`GitLab API error ${res.status}: ${text}`);
-  }
-  return await res.text();
-}
-
-function GITLAB_TOKenSafe(): string {
-  // small wrapper to keep token usage isolated for easier redaction if needed later
-  return GITLAB_TOKEN;
-}
-
-async function gitlabPaginated<T extends Json>(
-  path: string,
-  params: Record<string, string | number | boolean | undefined>,
-  maxPages = 10,
-): Promise<T[]> {
-  const results: T[] = [];
-  let page = 1;
-  while (page <= maxPages) {
-    const pageItems = await gitlabJson<T[]>(path, {
-      searchParams: { ...params, page, per_page: params.per_page ?? 100 },
-    });
-    if (!Array.isArray(pageItems) || pageItems.length === 0) break;
-    results.push(...pageItems);
-    if (pageItems.length < Number(params.per_page ?? 100)) break;
-    page += 1;
-  }
-  return results;
-}
-
-// Types for GitLab API responses (minimal shapes we use)
-const ProjectShape = {
-  id: z.number(),
-  name: z.string(),
-  name_with_namespace: z.string().optional(),
-  path_with_namespace: z.string(),
-  default_branch: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
-  web_url: z.string().optional(),
-};
-
-const BranchShape = {
-  name: z.string(),
-  default: z.boolean().optional(),
-};
-
-const TreeItemShape = {
-  id: z.string().optional(),
-  name: z.string(),
-  type: z.enum(["blob", "tree"]),
-  path: z.string(),
-  mode: z.string().optional(),
-};
-
-const BlobSearchResultShape = {
-  filename: z.string(),
-  path: z.string(),
-  startline: z.number().optional(),
-  ref: z.string().optional(),
-  project_id: z.number().optional(),
-  data: z.string().optional(),
-};
-
-const LanguagesShape = z.record(z.string(), z.number());
-
 // Build server
 const server = new McpServer({
   name: "gitlab-mcp",
@@ -164,7 +37,7 @@ const server = new McpServer({
 });
 // Important: log to stderr only; stdout is reserved for MCP JSON-RPC
 // eslint-disable-next-line no-console
-console.error("[MCP][GitLab] Server initialized", { host: GITLAB_HOST });
+console.error("[MCP][GitLab] Server initialized");
 
 // Tool: list_projects
 server.registerTool(
@@ -694,175 +567,154 @@ server.registerTool(
   },
 );
 
-// Tool: collect_review_bundle — curated, multi-call repo context for code review
+// Tool: get_repository_tree — simple repository tree for LLM exploration
 server.registerTool(
-  "collect_review_bundle",
+  "get_repository_tree",
   {
-    title: "Collect code review bundle",
+    title: "Get repository file tree",
     description:
-      "Collects project metadata, languages, selected key files (README, configs), and an optional subpath listing for code review.",
+      "Returns the complete repository file tree structure. LLM can then decide which specific files to read based on the tree. More efficient than trying to guess important files.",
     inputSchema: {
       projectIdOrPath: z.string(),
       ref: z.string().optional(),
-      basePath: z.string().optional(),
-      includeGlobs: z.array(z.string()).optional(),
-      maxFiles: z.number().min(1).max(200).default(40).optional(),
-      maxBytesPerFile: z
-        .number()
-        .min(1000)
-        .max(500_000)
-        .default(100_000)
-        .optional(),
-      maxPages: z.number().min(1).max(50).default(5).optional(),
+      maxDepth: z.number().min(1).max(10).default(5).optional(),
+      showFileTypes: z.boolean().default(true).optional(),
     },
   },
-  async ({
-    projectIdOrPath,
-    ref,
-    basePath,
-    includeGlobs,
-    maxFiles,
-    maxBytesPerFile,
-    maxPages,
-  }) => {
-    logToolCall("collect_review_bundle", {
+  async ({ projectIdOrPath, ref, maxDepth, showFileTypes }) => {
+    logToolCall("get_repository_tree", {
       projectIdOrPath,
       ref,
-      basePath,
-      includeGlobs,
-      maxFiles,
-      maxBytesPerFile,
-      maxPages,
+      maxDepth,
+      showFileTypes,
     });
     ensureToken();
 
     const encodedProject = encodeProjectId(projectIdOrPath);
-    // Resolve default branch if needed
-    let branch = ref ?? "";
-    if (!branch) {
-      try {
-        const projectUnknown = await gitlabJson<unknown>(
-          `/projects/${encodedProject}`,
-        );
-        const project = z
-          .object(ProjectShape)
-          .passthrough()
-          .parse(projectUnknown);
-        branch = project?.default_branch ?? "main";
-      } catch {
-        branch = "main";
-      }
-    }
 
-    const defaults = [
-      "README*",
-      "readme*",
-      "package.json",
-      "pnpm-lock.yaml",
-      "yarn.lock",
-      "package-lock.json",
-      "tsconfig.json",
-      "biome.json",
-      "eslint*",
-      ".eslintrc*",
-      ".prettierrc*",
-      "prettier*",
-      "Dockerfile",
-      "docker-compose.yml",
-      ".gitlab-ci.yml",
-    ];
-    const globs = (
-      includeGlobs && includeGlobs.length > 0 ? includeGlobs : defaults
-    ).map((g) => globToRegExp(g));
+    // Get project info for default branch
+    const projectUnknown = await gitlabJson<unknown>(
+      `/projects/${encodedProject}`,
+    );
+    const project = z.object(ProjectShape).passthrough().parse(projectUnknown);
+    const branch = ref ?? project.default_branch ?? "main";
 
-    // List tree recursively under basePath (or root)
+    // Get the repository tree
     const treeUnknown = await gitlabPaginated<unknown>(
       `/projects/${encodedProject}/repository/tree`,
-      { ref: branch, path: basePath, recursive: true },
-      maxPages ?? 5,
+      { ref: branch, recursive: true },
+      maxDepth ?? 5,
     );
     const tree = z.array(z.object(TreeItemShape)).parse(treeUnknown);
+
+    // Build a clean tree structure for LLM
     const files = tree.filter((i) => i.type === "blob");
-    const keyFiles = files
-      .filter((f) => globs.some((re) => re.test(f.path)))
-      .slice(0, maxFiles ?? 40)
-      .map((f) => f.path);
+    const directories = tree.filter((i) => i.type === "tree");
 
-    async function read(path: string): Promise<{ path: string; text: string }> {
-      const text = await gitlabText(
-        `/projects/${encodedProject}/repository/files/${encodeURIComponent(path)}/raw`,
-        { searchParams: { ref: branch } },
-      );
-      const limit = maxBytesPerFile ?? 100_000;
-      const truncated =
-        text.length > limit ? `${text.slice(0, limit)}\n... [truncated]` : text;
-      return { path, text: truncated };
-    }
+    // Group files by directory for better organization
+    const filesByDir: Record<string, string[]> = {};
+    files.forEach((file) => {
+      const dir = file.path.includes("/")
+        ? file.path.substring(0, file.path.lastIndexOf("/"))
+        : "/";
+      if (!filesByDir[dir]) filesByDir[dir] = [];
+      filesByDir[dir].push(file.name);
+    });
 
-    const [languagesUnknown, reads] = await Promise.all([
-      gitlabJson<unknown>(`/projects/${encodedProject}/languages`),
-      Promise.all(keyFiles.map((p) => read(p)).slice(0, maxFiles ?? 40)),
-    ]);
-    const languages = LanguagesShape.parse(languagesUnknown);
+    // Basic file type statistics if requested
+    const fileStats = showFileTypes
+      ? {
+          totalFiles: files.length,
+          totalDirectories: directories.length,
+          fileExtensions: files.reduce(
+            (acc, file) => {
+              const ext = file.name.includes(".")
+                ? file.name.split(".").pop()?.toLowerCase() || "no-ext"
+                : "no-ext";
+              acc[ext] = (acc[ext] || 0) + 1;
+              return acc;
+            },
+            {} as Record<string, number>,
+          ),
+        }
+      : undefined;
 
-    const bundle = {
-      meta: {
-        project: projectIdOrPath,
-        ref: branch,
-        basePath: basePath ?? "/",
+    const result = {
+      project: {
+        name: project.name,
+        path: project.path_with_namespace,
+        description: project.description,
+        default_branch: project.default_branch,
+        web_url: project.web_url,
       },
-      languages,
-      keyFiles: reads,
-      counts: {
-        totalTreeFiles: files.length,
-        included: reads.length,
+      tree: {
+        branch,
+        structure: filesByDir,
+        allFiles: files.map((f) => f.path).sort(),
+        ...(fileStats && { stats: fileStats }),
+      },
+      suggestions: {
+        commonConfigFiles: files
+          .filter((f) =>
+            [
+              "package.json",
+              "tsconfig.json",
+              "requirements.txt",
+              "go.mod",
+              "Cargo.toml",
+              "pom.xml",
+              "composer.json",
+              "Gemfile",
+            ].includes(f.name),
+          )
+          .map((f) => f.path),
+        readmeFiles: files
+          .filter((f) => f.name.toLowerCase().startsWith("readme"))
+          .map((f) => f.path),
+        dockerFiles: files
+          .filter(
+            (f) =>
+              f.name.toLowerCase().includes("dockerfile") ||
+              f.name === "docker-compose.yml",
+          )
+          .map((f) => f.path),
       },
     };
 
     return {
-      content: [{ type: "text", text: JSON.stringify(bundle, null, 2) }],
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
   },
 );
 
-// Helper: glob-to-regexp (naive, supports * and **)
-function globToRegExp(glob: string): RegExp {
-  const escaped = glob
-    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-    .replace(/\\\*\\\*\//g, "(?:.*/)?")
-    .replace(/\\\*\\\*/g, ".*")
-    .replace(/\\\*/g, "[^/]*");
-  return new RegExp(`^${escaped}$`);
-}
-
-// Optionally expose a file resource URI template for convenience
-// Example URI: gitlab://project/{id}/file/{ref}/{path}
-server.registerResource(
-  "gitlab-file",
-  new ResourceTemplate(
-    "gitlab://project/{projectIdOrPath}/file/{ref}/{filePath}",
-    { list: undefined },
-  ),
-  {
-    title: "GitLab File",
-    description: "Read a GitLab repository file via resource URI.",
-    mimeType: "text/plain",
-  },
-  async (uri, params) => {
-    const { projectIdOrPath, ref, filePath } = params as unknown as {
-      projectIdOrPath: string;
-      ref: string;
-      filePath: string;
-    };
-    const text = await gitlabText(
-      `/projects/${encodeProjectId(
-        projectIdOrPath,
-      )}/repository/files/${encodeURIComponent(filePath)}/raw`,
-      { searchParams: { ref } },
-    );
-    return { contents: [{ uri: uri.href, text }] };
-  },
-);
+// // Optionally expose a file resource URI template for convenience
+// // Example URI: gitlab://project/{id}/file/{ref}/{path}
+// server.registerResource(
+//   "gitlab-file",
+//   new ResourceTemplate(
+//     "gitlab://project/{projectIdOrPath}/file/{ref}/{filePath}",
+//     { list: undefined },
+//   ),
+//   {
+//     title: "GitLab File",
+//     description: "Read a GitLab repository file via resource URI.",
+//     mimeType: "text/plain",
+//   },
+//   async (uri, params) => {
+//     const { projectIdOrPath, ref, filePath } = params as unknown as {
+//       projectIdOrPath: string;
+//       ref: string;
+//       filePath: string;
+//     };
+//     const text = await gitlabText(
+//       `/projects/${encodeProjectId(
+//         projectIdOrPath,
+//       )}/repository/files/${encodeURIComponent(filePath)}/raw`,
+//       { searchParams: { ref } },
+//     );
+//     return { contents: [{ uri: uri.href, text }] };
+//   },
+// );
 
 // Start STDIO transport if executed directly
 if (require.main === module) {
