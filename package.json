@@ -14,7 +14,8 @@
     "db:generate": "drizzle-kit generate",
     "mcp:gitlab": "tsx src/mcp/gitlab/index.ts",
     "aide:test": "tsx quick-test-aide.ts",
-    "aide:test-all": "tsx cli-aide-example.ts"
+    "aide:test-all": "tsx cli-aide-example.ts",
+    "aide:test-tools": "tsx tool-calling-example.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.12",

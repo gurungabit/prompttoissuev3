@@ -4,6 +4,7 @@ import type {
   LanguageModelV2CallWarning,
   LanguageModelV2Content,
   LanguageModelV2FinishReason,
+  LanguageModelV2FunctionTool,
   LanguageModelV2Prompt,
   LanguageModelV2StreamPart,
   ProviderV2,
@@ -100,6 +101,12 @@ interface AideRequestBody {
           }>;
           temperature?: number;
           top_p?: number;
+          tools?: Array<{
+            name: string;
+            description?: string;
+            input_schema: Record<string, unknown>;
+          }>;
+          tool_choice?: { type: "auto" | "any" | "tool"; name?: string };
         };
       };
     };
@@ -113,9 +120,27 @@ interface AideRequestBody {
           messages: Array<{
             role: string;
             content: string;
+            tool_calls?: Array<{
+              id: string;
+              type: "function";
+              function: { name: string; arguments: string };
+            }>;
           }>;
           temperature?: number;
           max_tokens?: number;
+          tools?: Array<{
+            type: "function";
+            function: {
+              name: string;
+              description?: string;
+              parameters: Record<string, unknown>;
+            };
+          }>;
+          tool_choice?:
+            | "auto"
+            | "none"
+            | "required"
+            | { type: "function"; function: { name: string } };
         };
       };
     };
@@ -146,7 +171,13 @@ interface AideResponse {
     type: string;
     role: string;
     model: string;
-    content: Array<{ type: string; text: string }>;
+    content: Array<{
+      type: string;
+      text?: string;
+      id?: string;
+      name?: string;
+      input?: Record<string, unknown>;
+    }>;
     stop_reason: string;
     usage: {
       input_tokens: number;
@@ -163,6 +194,14 @@ interface AideResponse {
       message: {
         content: string;
         role: string;
+        tool_calls?: Array<{
+          id: string;
+          type: "function";
+          function: {
+            name: string;
+            arguments: string;
+          };
+        }>;
       };
     }>;
     usage: {
@@ -190,6 +229,54 @@ class AideChatLanguageModel implements LanguageModelV2 {
     this.modelId = modelId;
     this.settings = settings;
     this.config = config;
+  }
+
+  private convertToolsToAws(tools: LanguageModelV2FunctionTool[]) {
+    return tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      input_schema: tool.inputSchema,
+    }));
+  }
+
+  private convertToolsToAzure(tools: LanguageModelV2FunctionTool[]) {
+    return tools.map((tool) => ({
+      type: "function" as const,
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema,
+      },
+    }));
+  }
+
+  private convertToolChoiceToAws(toolChoice: any) {
+    if (!toolChoice) return undefined;
+    if (typeof toolChoice === "object") {
+      if (toolChoice.type === "auto") return { type: "auto" as const };
+      if (toolChoice.type === "required") return { type: "any" as const };
+      if (toolChoice.type === "none") return undefined;
+      if (toolChoice.type === "tool") {
+        return { type: "tool" as const, name: toolChoice.toolName };
+      }
+    }
+    return { type: "auto" as const };
+  }
+
+  private convertToolChoiceToAzure(toolChoice: any) {
+    if (!toolChoice) return "auto";
+    if (typeof toolChoice === "object") {
+      if (toolChoice.type === "auto") return "auto";
+      if (toolChoice.type === "required") return "required";
+      if (toolChoice.type === "none") return "none";
+      if (toolChoice.type === "tool") {
+        return {
+          type: "function" as const,
+          function: { name: toolChoice.toolName },
+        };
+      }
+    }
+    return "auto";
   }
 
   private getArgs(options: LanguageModelV2CallOptions) {
@@ -224,34 +311,59 @@ class AideChatLanguageModel implements LanguageModelV2 {
     };
 
     if (providerType === "azure") {
+      const azureBody: any = {
+        model: this.modelId,
+        messages: messages.map((msg) => ({
+          role: msg.role,
+          content: msg.content
+            .filter((c) => c.type === "text")
+            .map((c) => (c as { text: string }).text)
+            .join(""),
+        })),
+        temperature: options.temperature,
+        max_tokens: options.maxOutputTokens,
+      };
+
+      // Add tools if provided
+      if (options.tools && options.tools.length > 0) {
+        azureBody.tools = this.convertToolsToAzure(
+          options.tools as LanguageModelV2FunctionTool[],
+        );
+        azureBody.tool_choice = this.convertToolChoiceToAzure(
+          options.toolChoice,
+        );
+      }
+
       body.azure = {
         openai: {
           apiVersion: "2024-10-21",
           chatCompletions: {
-            create: {
-              model: this.modelId,
-              messages: messages.map((msg) => ({
-                role: msg.role,
-                content: msg.content.map((c) => c.text).join(""),
-              })),
-              temperature: options.temperature,
-              max_tokens: options.maxOutputTokens,
-            },
+            create: azureBody,
           },
         },
       };
     } else {
+      const awsBody: any = {
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: options.maxOutputTokens || 1024,
+        messages: messages,
+        temperature: options.temperature,
+        top_p: options.topP,
+      };
+
+      // Add tools if provided
+      if (options.tools && options.tools.length > 0) {
+        awsBody.tools = this.convertToolsToAws(
+          options.tools as LanguageModelV2FunctionTool[],
+        );
+        awsBody.tool_choice = this.convertToolChoiceToAws(options.toolChoice);
+      }
+
       body.aws = {
         bedrock: {
           invoke: {
             modelId: this.modelId,
-            body: {
-              anthropic_version: "bedrock-2023-05-31",
-              max_tokens: options.maxOutputTokens || 1024,
-              messages: messages,
-              temperature: options.temperature,
-              top_p: options.topP,
-            },
+            body: awsBody,
           },
         },
       };
@@ -275,21 +387,66 @@ class AideChatLanguageModel implements LanguageModelV2 {
               .filter((part) => part.type === "text")
               .map((part) => ({
                 type: "text" as const,
-                text: part.text,
+                text: (part as { text: string }).text,
               })),
           };
-        case "assistant":
-          return {
-            role: "assistant" as const,
-            content: message.content
-              .filter((part) => part.type === "text")
-              .map((part) => ({
+        case "assistant": {
+          const assistantContent: Array<{
+            type: string;
+            text?: string;
+            id?: string;
+            name?: string;
+            input?: any;
+          }> = [];
+
+          for (const part of message.content) {
+            if (part.type === "text") {
+              assistantContent.push({
                 type: "text" as const,
                 text: part.text,
-              })),
+              });
+            } else if (
+              part.type === "tool-call" &&
+              "toolCallId" in part &&
+              "toolName" in part &&
+              "input" in part
+            ) {
+              const toolPart = part as any;
+              assistantContent.push({
+                type: "tool_use" as const,
+                id: toolPart.toolCallId,
+                name: toolPart.toolName,
+                input:
+                  typeof toolPart.input === "string"
+                    ? JSON.parse(toolPart.input)
+                    : toolPart.input,
+              });
+            }
+          }
+
+          return {
+            role: "assistant" as const,
+            content: assistantContent,
+          };
+        }
+        case "tool":
+          return {
+            role: "user" as const,
+            content: message.content.map((part) => {
+              const toolPart = part as any;
+              return {
+                type: "tool_result" as const,
+                tool_use_id: toolPart.toolCallId,
+                content:
+                  typeof toolPart.result === "string"
+                    ? toolPart.result
+                    : JSON.stringify(toolPart.result),
+                is_error: toolPart.isError || false,
+              };
+            }),
           };
         default:
-          throw new Error(`Unsupported message role: ${message.role}`);
+          throw new Error(`Unsupported message role: ${(message as any).role}`);
       }
     });
   }
@@ -304,6 +461,9 @@ class AideChatLanguageModel implements LanguageModelV2 {
         return "length";
       case "content_filter":
         return "content-filter";
+      case "tool_calls":
+      case "tool_use":
+        return "tool-calls";
       default:
         return "other";
     }
@@ -336,10 +496,21 @@ class AideChatLanguageModel implements LanguageModelV2 {
     if (data.aws) {
       // AWS Bedrock response
       for (const contentItem of data.aws.content) {
-        if (contentItem.type === "text") {
+        if (contentItem.type === "text" && contentItem.text) {
           content.push({
             type: "text",
             text: contentItem.text,
+          });
+        } else if (
+          contentItem.type === "tool_use" &&
+          contentItem.id &&
+          contentItem.name
+        ) {
+          content.push({
+            type: "tool-call",
+            toolCallId: contentItem.id,
+            toolName: contentItem.name,
+            input: JSON.stringify(contentItem.input || {}),
           });
         }
       }
@@ -362,10 +533,24 @@ class AideChatLanguageModel implements LanguageModelV2 {
     if (data.azure) {
       // Azure OpenAI response
       const choice = data.azure.choices[0];
-      content.push({
-        type: "text",
-        text: choice.message.content,
-      });
+
+      if (choice.message.content) {
+        content.push({
+          type: "text",
+          text: choice.message.content,
+        });
+      }
+
+      if (choice.message.tool_calls) {
+        for (const toolCall of choice.message.tool_calls) {
+          content.push({
+            type: "tool-call",
+            toolCallId: toolCall.id,
+            toolName: toolCall.function.name,
+            input: toolCall.function.arguments,
+          });
+        }
+      }
 
       return {
         content,
@@ -403,6 +588,14 @@ class AideChatLanguageModel implements LanguageModelV2 {
               type: "text-delta",
               id: generateId(),
               delta: content.text,
+            });
+          } else if (content.type === "tool-call") {
+            const toolCall = content as any;
+            controller.enqueue({
+              type: "tool-call",
+              toolCallId: toolCall.toolCallId,
+              toolName: toolCall.toolName,
+              input: toolCall.input,
             });
           }
         }
