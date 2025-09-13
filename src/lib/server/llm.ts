@@ -28,7 +28,8 @@ export async function streamAssistant(
     mcpSettings?: McpSettings;
   },
 ) {
-  const { provider, model } = createProvider(modelSpec);
+  // Provider instance (async: AIDE may fetch a token)
+  const { provider, model } = await createProvider(modelSpec);
 
   // Extract user message and check for GitLab URLs
   const lastUser = [...messages].reverse().find((m) => m.role === "user");

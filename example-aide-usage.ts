@@ -7,7 +7,7 @@ import { createProvider } from "./src/lib/server/providers";
 async function exampleAideClaudeUsage() {
   // The provider will be created based on environment variables:
   // AIDE_API_KEY, AIDE_USE_CASE_ID, AIDE_BASE_URL
-  const { provider, model } = createProvider(
+  const { provider, model } = await createProvider(
     "aide:us.anthropic.claude-sonnet-4-20250514-v1:0",
   );
 
@@ -35,7 +35,7 @@ async function exampleAideClaudeUsage() {
 
 // Example 2: Using AIDE with GPT model
 async function exampleAideGPTUsage() {
-  const { provider, model } = createProvider("aide:gpt-4o");
+  const { provider, model } = await createProvider("aide:gpt-4o");
 
   try {
     const result = await provider.languageModel(model).doGenerate({
@@ -67,7 +67,7 @@ async function exampleAideGPTUsage() {
 
 // Example 3: Using streaming with AIDE
 async function exampleAideStreamingUsage() {
-  const { provider, model } = createProvider("aide:gpt-4o-mini");
+  const { provider, model } = await createProvider("aide:gpt-4o-mini");
 
   try {
     const { stream } = await provider.languageModel(model).doStream({
@@ -105,7 +105,7 @@ async function exampleAideStreamingUsage() {
 
 // Example 4: Using AIDE with Claude Opus 4 (most capable model)
 async function exampleAideClaudeOpusUsage() {
-  const { provider, model } = createProvider(
+  const { provider, model } = await createProvider(
     "aide:us.anthropic.claude-opus-4-20250514-v1:0",
   );
 
@@ -134,7 +134,7 @@ async function exampleAideClaudeOpusUsage() {
 
 // Example 5: Using AIDE with custom settings
 async function exampleAideCustomSettings() {
-  const { provider, model } = createProvider(
+  const { provider, model } = await createProvider(
     "aide:us.anthropic.claude-sonnet-4-20250514-v1:0",
   );
 
