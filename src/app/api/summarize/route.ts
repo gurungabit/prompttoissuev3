@@ -22,7 +22,12 @@ export async function POST(req: NextRequest) {
   const modelUsed = thread.defaultModel ?? DEFAULT_SPEC;
   const { provider, model } = parseSpecifier(modelUsed);
   const provCfg = PROVIDERS[provider];
-  if (!provCfg || !(provCfg.models as readonly string[]).includes(model)) {
+  const supported = provCfg
+    ? (provCfg.models as ReadonlyArray<{ id: string; enabled: boolean }>).find(
+        (m) => m.id === model && m.enabled,
+      )
+    : undefined;
+  if (!provCfg || !supported) {
     return Response.json(
       { error: `Unsupported model '${modelUsed}'.` },
       { status: 400 },

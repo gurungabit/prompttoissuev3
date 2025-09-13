@@ -18,7 +18,12 @@ export async function POST(req: NextRequest) {
 
   const { provider, model } = parseSpecifier(parsed.data.spec);
   const provCfg = PROVIDERS[provider];
-  if (!provCfg || !(provCfg.models as readonly string[]).includes(model)) {
+  const supported = provCfg
+    ? (provCfg.models as ReadonlyArray<{ id: string; enabled: boolean }>).find(
+        (m) => m.id === model && m.enabled,
+      )
+    : undefined;
+  if (!provCfg || !supported) {
     return Response.json(
       { ok: false, error: `Unsupported spec '${parsed.data.spec}'` },
       { status: 400 },

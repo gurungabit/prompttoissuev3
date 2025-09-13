@@ -1,6 +1,6 @@
 import { type ModelMessage, streamText } from "ai";
 import type { McpSettings } from "../client/mcp-types";
-import { DEFAULT_SPEC } from "../llm-config";
+import { DEFAULT_SPEC, isToolCallingEnabled } from "../llm-config";
 import {
   containsGitLabUrl,
   type GitLabInfo,
@@ -45,12 +45,23 @@ export async function streamAssistant(
     refHint = gitLabInfo.ref;
   }
 
-  // Setup MCP tools
-  const { mcpTools, availableToolNames, toolHint } = await setupMcpTools(
-    options?.mcpSettings,
-    projectIdHint,
-    refHint,
-  );
+  // Check if tools are allowed for this model before setting up MCP
+  const allowTools = isToolCallingEnabled(modelSpec);
+
+  // Setup MCP tools only if tool calling is enabled for this model
+  let mcpTools: Record<string, unknown> | null = null;
+  let availableToolNames: string[] = [];
+  let toolHint: string | undefined;
+  if (allowTools) {
+    const res = await setupMcpTools(
+      options?.mcpSettings,
+      projectIdHint,
+      refHint,
+    );
+    mcpTools = res.mcpTools;
+    availableToolNames = res.availableToolNames;
+    toolHint = res.toolHint;
+  }
 
   // Resolve project path if needed
   if ((options?.allowPrefetch ?? true) && projectIdHint && mcpTools) {
@@ -74,7 +85,11 @@ export async function streamAssistant(
       : {};
 
   // Build system messages
-  const systemMessages = buildSystemMessages(toolHint, rawText, prefetchResult);
+  const systemMessages = buildSystemMessages(
+    allowTools ? toolHint : undefined,
+    rawText,
+    prefetchResult,
+  );
   const augmentedMessages = [...systemMessages, ...messages] as ModelMessage[];
 
   // Log strategy
@@ -95,9 +110,12 @@ export async function streamAssistant(
   const result = await streamText({
     model: provider(model),
     messages: augmentedMessages,
-    tools: mcpTools ?? undefined,
-    ...buildStreamConfig(options),
-  });
+    tools: allowTools ? (mcpTools as unknown) : undefined,
+    ...buildStreamConfig({
+      ...(options ?? {}),
+      enforceFirstToolCall: allowTools ? options?.enforceFirstToolCall : false,
+    }),
+  } as unknown as Parameters<typeof streamText>[0]);
 
   return result;
 }

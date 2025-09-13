@@ -20,8 +20,13 @@ export function validateSpec(
   const spec = specInput ?? DEFAULT_SPEC;
   const { provider, model } = parseSpecifier(spec);
   const provCfg = PROVIDERS[provider];
+  const supported = provCfg
+    ? (provCfg.models as ReadonlyArray<{ id: string; enabled: boolean }>).find(
+        (m) => m.id === model && m.enabled,
+      )
+    : undefined;
 
-  if (!provCfg || !(provCfg.models as readonly string[]).includes(model)) {
+  if (!supported) {
     return {
       ok: false,
       error: `Unsupported model '${spec}'.`,

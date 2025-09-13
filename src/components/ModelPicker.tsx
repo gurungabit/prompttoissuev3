@@ -2,24 +2,14 @@
 import { ChevronDown, Search, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "../context/Settings";
-import { toSpecifier } from "../lib/llm-config";
+import { PROVIDERS, type ProviderId, toSpecifier } from "../lib/llm-config";
 
 type ModelOption = {
   id: string; // provider:model
   label: string;
-  provider: "google"; // constrained for now
+  provider: ProviderId;
   model: string;
 };
-
-// For now, expose a single Gemini option as requested
-const OPTIONS: readonly ModelOption[] = [
-  {
-    id: toSpecifier("google", "gemini-2.0-flash"),
-    label: "Gemini 2.0 Flash",
-    provider: "google",
-    model: "gemini-2.0-flash",
-  },
-] as const;
 
 export function ModelPicker() {
   const { spec, setSpec } = useSettings();
@@ -27,19 +17,46 @@ export function ModelPicker() {
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement | null>(null);
 
+  const options = useMemo<readonly ModelOption[]>(() => {
+    const opts: ModelOption[] = [];
+    (Object.keys(PROVIDERS) as ProviderId[]).forEach((pid) => {
+      const prov = PROVIDERS[pid];
+      (
+        prov.models as ReadonlyArray<{
+          id: string;
+          enabled: boolean;
+          label?: string;
+        }>
+      )
+        .filter((m) => m.enabled)
+        .forEach((m) => {
+          const id = toSpecifier(pid, m.id);
+          const label = m.label ?? m.id;
+          opts.push({ id, label, provider: pid, model: m.id });
+        });
+    });
+    // Stable order: provider name then model id
+    opts.sort((a, b) =>
+      a.provider === b.provider
+        ? a.model.localeCompare(b.model)
+        : a.provider.localeCompare(b.provider),
+    );
+    return opts;
+  }, []);
+
   const selected = useMemo(
-    () => OPTIONS.find((o) => o.id === spec) ?? OPTIONS[0],
-    [spec],
+    () => options.find((o) => o.id === spec) ?? options[0],
+    [spec, options],
   );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return OPTIONS;
-    return OPTIONS.filter(
+    if (!q) return options;
+    return options.filter(
       (o) =>
         o.label.toLowerCase().includes(q) || o.model.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [query, options]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

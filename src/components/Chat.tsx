@@ -361,7 +361,10 @@ export function Chat({
             aria-label="Jump to latest"
             aria-hidden={!hasBelow}
           >
-            <ChevronsDown size={18} />
+            <div className="inline-flex items-center gap-2">
+              <ChevronsDown size={18} />
+              <span>Scroll to Bottom</span>
+            </div>
           </button>
           <div className="ml-auto">
             <ModeToggle

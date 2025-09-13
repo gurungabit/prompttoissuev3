@@ -26,13 +26,17 @@ type SettingsContextValue = {
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [spec, setSpecState] = useState<string>(() => {
+  // Important: initialize with DEFAULT_SPEC to avoid SSR/CSR mismatch.
+  const [spec, setSpecState] = useState<string>(DEFAULT_SPEC);
+
+  // After mount, read localStorage and update if valid
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw && isSupportedModel(raw)) return raw;
+      if (raw && isSupportedModel(raw)) setSpecState(raw);
     } catch {}
-    return DEFAULT_SPEC;
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     try {
@@ -79,6 +83,13 @@ export function listProviders(): Array<{
   return (Object.keys(PROVIDERS) as ProviderId[]).map((id) => ({
     id,
     label: PROVIDERS[id].label,
-    models: PROVIDERS[id].models,
+    models: (
+      PROVIDERS[id].models as ReadonlyArray<{
+        id: string;
+        enabled: boolean;
+      }>
+    )
+      .filter((m) => m.enabled)
+      .map((m) => m.id),
   }));
 }
