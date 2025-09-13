@@ -9,6 +9,16 @@ export const PROVIDERS = {
     label: "OpenAI",
     models: ["gpt-4o-mini", "gpt-4o"],
   },
+  aide: {
+    label: "AIDE",
+    models: [
+      "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "us.anthropic.claude-sonnet-4-20250514-v1:0",
+      "us.anthropic.claude-opus-4-20250514-v1:0",
+      "gpt-4o",
+      "gpt-4o-mini",
+    ],
+  },
 } as const;
 
 export type ProviderId = keyof typeof PROVIDERS;

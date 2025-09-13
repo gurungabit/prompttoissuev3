@@ -12,11 +12,15 @@
     "format": "biome format --write",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "mcp:gitlab": "tsx src/mcp/gitlab/index.ts"
+    "mcp:gitlab": "tsx src/mcp/gitlab/index.ts",
+    "aide:test": "tsx quick-test-aide.ts",
+    "aide:test-all": "tsx cli-aide-example.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.12",
     "@ai-sdk/openai": "^2.0.24",
+    "@ai-sdk/provider": "^2.0.0",
+    "@ai-sdk/provider-utils": "^3.0.9",
     "@modelcontextprotocol/sdk": "^1.17.5",
     "ai": "^5.0.32",
     "drizzle-orm": "^0.44.5",
